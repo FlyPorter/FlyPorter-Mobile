@@ -1,141 +1,271 @@
-# ECE1724 Project Proposal -- FlightGo Flight Booking System
+# ECE1778 Project Proposal -- FlyPorter Mobile Flight Booking App
 
-Guanhong Wu 1002377475 guanhong.wu@mail.utoronto.ca GitHub: `GuanhongW` <br>
-Gan Yang 1000909163 gabriel.yang@mail.utoronto.ca GitHub: `ganyangut` <br>
-Yiyang Wang 1010033278 ydev.wang@mail.utoronto.ca GitHub: `yiyangww` <br>
-Jiaqi Wang 1010099108 jqjqjq.wang@mail.utoronto.ca GitHub: `jiaqiwangut`
+Yiyang Wang: 1010033278 <br>
+Yuan Wang: 1002766526 <br>
+Yiyang Liu: 1011770512 <br>
+Zihan Wan: 1011617779
 
 ---
 
 ### 1. Motivation
 
-Air travel has become an essential part of life—whether for business, education, or travel. Nonetheless, the process of booking flights often remains inconvenient due to cluttered platforms, hidden fees, slow response times, and unresponsive pages. Many existing flight portals focus on advertising and upselling, leading to overwhelming interfaces that neglect the user experience. In addition, travelers often navigate between separate airline and comparison sites for seat selection, flight information, and booking confirmations, further complicating the process.
+In today’s mobile focused world, booking a flight should be fast, clear, and reliable, but many existing apps fail to deliver. Users often face cluttered interfaces, hidden fees, slow performance, or inconsistent seat availability. Some platforms do not even allow users to manage their bookings directly, relying only on confirmation emails. These limitations create unnecessary frustration and reduce trust in the booking process.
 
-These hurdles, combined with high concurrent traffic during peak booking times, often result in slow response times, unresponsive actions, and even system crashes. Moreover, users frequently face inconsistent seat availability due to delayed data synchronization, resulting in frustration and booking errors. To address these challenges, we propose a flight booking web app called FlightGo that prioritizes simplicity, speed, and reliability—ensuring users can efficiently search, book, and manage flights without unnecessary obstacles.
+FlyPorter Mobile addresses these issues with a clean, responsive mobile app designed for real-world use. Built with React Native and Expo, the app enables users to search for flights, view real-time seat and price availability, and manage bookings entirely from their phone. Local and push notifications provide timely updates, while account-based booking ensures users can view, modify, or cancel flights without relying on customer support. The design emphasizes speed, clarity, and transparency, removing common friction points found in legacy systems.
 
-FlightGo will leverage React and Express.js with PostgreSQL for fast, optimized front-end performance and ensure efficient, scalable backend operations. Through real-time seat availability updates and concurrency-safe booking processes, FlightGo provides a seamless and reliable experience, even during high-demand periods. By integrating advanced concurrency handling and optimized database transactions, FlightGo aims to set a new standard for user-friendly, high-performance flight booking experiences.
+The app targets three groups: business travelers who need speed and reliability, students and frequent flyers seeking affordability and control, and airline administrators managing routes and inventory. For each group, FlyPorter Mobile offers practical benefits and a better overall experience.
 
-FlightGo is designed for users including busy professionals, students, and frequent flyers who need a fast and reliable way to book flights. Business travelers often require last-minute bookings with minimal hassle, while students and budget-conscious travelers prioritize cost-effective options and clear availability. Additionally, airline administrators are also target users as they play a crucial role in managing flights efficiently. FlightGo provides an admin page that allows airline staff to create, update, and manage flights, ensuring accurate and up-to-date information is available to customers. By streamlining the booking process and ensuring real-time flight status updates, FlightGo eliminates the frustration of navigating between multiple platforms to compare prices, check seat availability, and manage reservations.
-
-Some websites just remove user login requirements and account functions entirely, sending booking details via email to simplify operations and reduce costs. While this solution makes the process faster, it also limits users from managing or canceling bookings easily, requiring direct contact with airlines.
-
-Overall, FlightGo balances efficiency with convenience by keeping user accounts, allowing travelers to book seamlessly while also managing their reservations with ease. Ultimately, this project aims to provide a reliable alternative to current flight booking systems. Users will benefit from a clear, optimized interface that enhances trust and usability. Admins can efficiently manage flights while improving the passenger experience.
+This project is both technically feasible and educationally valuable. It aligns well with course goals, covering core mobile development areas such as navigation, state management, persistence, notifications, and backend integration, while addressing real user pain points with a focused and achievable scope.
 
 ---
 
 ### 2. Objective and Key Features
 
-FlightGo aims to create a smooth and efficient flight ticket booking system that enhances user experience through simplicity, speed, and reliability. Our objective is to develop a full-featured platform where users can easily search for flights, select seats, book tickets, and receive automated email confirmations. Additionally, an admin panel will be included for managing flights and bookings.
+FlyPorter Mobile aims to deliver a modern flight booking application that enables users to search, book, and manage flights while providing administrators with tools to maintain routes, pricing, and bookings. The project focuses on building a responsive and reliable experience using React Native and Expo, supported by backend and persistent data storage.
 
-By leveraging modern web technologies, FlightGo ensures that the booking process remains intuitive and accessible, minimizing user frustration and maximizing convenience.
+The solution is organized into three parts: an Expo (React Native, TypeScript) client for interaction and navigation; a Node/Express REST API for core logic and admin operations; and a PostgreSQL database for persistent storage. Docker Compose supports local development of the API and database, while mobile builds are distributed via Expo EAS for device testing. Persistent storage ensures flight, seat inventory, and booking data remain intact across deployments.
 
-#### **Core Features**
+#### Core Features
 
-- **Authentication (authn)**
+- **React Native & Expo Development**  
+  - Built with Expo (React Native) and TypeScript. All props, navigation params, and API models use strict typing for reliability and clarity.  
+  - Screens (initial launch: 4+): Search → Results → Flight Detail & Seat Map → Checkout (traveler details) → Confirmation.  
+  - Additional: Bookings, Profile, and Admin panel (visible only for admin users).  
+  - UI approach: core RN components (View, Text, TextInput, FlatList). All screens responsive with proper accessibility roles and labels.
 
-  - Users must authenticate before accessing functionalities to protect personal data.
-  - Sign-up/login using email (username) and password.
-  - Multi-factor authentication (MFA) with email verification for security.
+- **Navigation**  
+  - Expo Router with file-based routes:  
+    `app/(tabs)/search.tsx`, `app/flight/[id].tsx`, `app/checkout/index.tsx`, `app/bookings/index.tsx`, `app/profile/index.tsx`, `app/(auth)/sign-in.tsx`, `app/(admin)/routes.tsx`, `app/_layout.tsx`.  
+  - All route parameters fully typed. Deep links and navigation actions (e.g., `push`) can target dynamic routes like `/booking/[id]` or `/flight/[id]`.
 
-- **Authorization (authz)**
+- **State Management & Persistence**  
+  - App state via Context + `useReducer` slices: `auth`, `searchFilters`, `seatSelection`, `cart/checkout`, `bookings`.  
+  - Persistence: AsyncStorage for non-sensitive data (last search, prefs); SecureStore for tokens/MFA secrets.  
+  - Patterns: loading/error/retry flags; cancellation with `AbortController`; optimistic updates only where safe.
 
-  - Different roles control access to data and functionalities:
-    - **Customer**: Search for flights, book tickets, select seats, and manage their bookings.
-    - **Administrator**: Manage flight information (add, update, delete flights).
+- **Notifications**  
+  - Implement with `expo-notifications`; request permission on first run.  
+  - Handle taps with `addNotificationResponseReceivedListener` and deep-link (Expo Router) to `/search` if no active bookings, otherwise `/bookings`.
 
-- **Flight Management**
+- **Backend Integration**  
+  - Custom REST API (Node/Express + PostgreSQL). Key endpoints:  
+    - Public: `GET /airports`, `GET /routes`, `GET /flights?from&to&date&airline&priceMax`, `GET /flights/:id/seats`  
+    - Bookings: `POST /bookings`, `GET /bookings/me`, `DELETE /bookings/:id`  
+    - Auth: `POST /auth/register`, `POST /auth/login`, `POST /auth/google`, `POST /auth/mfa/verify`, `POST /auth/logout`  
+    - Admin: CRUD for cities/airports/routes/flights/prices/seats, `GET /bookings`  
+  - Time: store all schedules in UTC; client renders device-local time.  
+  - Reliability: server-side seat holds + transactional booking to prevent oversell; idempotent booking create (client sends `Idempotency-Key`).  
+  - Errors: normalized JSON `{ code, message, details }`; client shows inline errors and retry.
 
-  - Administrators will have the ability to manage flight data, including adding, updating, and deleting flights in the system. This feature will be restricted to administrators only.
+- **Deployment**  
+  - Mobile: Expo EAS Build for iOS/Android test builds; channels: `dev`, `preview`, `prod`.  
+  - Config: `.env` per channel for API base URL; feature flags for push/payments.  
+  - API/DB: local via Docker Compose (persistent PG volume). Prod: simple VM/container host (scope-friendly).
 
-- **Flight Search**
+- **Authentication & Authorization**  
+  - Email/password registration and login. Roles: `customer` and `admin`.  
+  - Customers: search, book, manage own flights.  
+  - Admins: add/update/remove flight listings.  
+  - MFA with email verification for added security.
 
-  - Customers can search for flights based on:
-    - Trip type (one-way or round-trip)
-    - Departure and arrival dates/times
-    - Departure and arrival cities/airports
-    - Flight duration
-    - Airlines
-    - Price range
+- **Flight Search & Booking**  
+  - Search criteria:  
+    - Trip type (one-way or round-trip)  
+    - Departure/arrival dates & times  
+    - Departure/arrival cities or airports  
+    - Flight duration  
+    - Airlines  
+    - Price range  
+  - Users can book available flights and choose seats once booking is confirmed.
 
-- **Flight Booking**
+- **Payment Page**  
+  - Payments via mock or third-party API.  
+  - Invoices generated and stored in DigitalOcean Spaces.  
+  - Past payment records visible on the account page.
 
-  - Customers can book available flights and choose their seats once their booking is confirmed.
+- **Booking Management**  
+  - View, modify, or cancel bookings.  
+  - Backend ensures consistency between `flights` and `bookings` tables.
 
-- **Booking Management**
+- **Admin Panel**  
+  - Manage flights: create routes, adjust prices, change seat availability.  
+  - Protected by role-based authorization.
 
-  - Customers will be able to view and cancel their bookings.
-  - Customers will be able to modify their seats on their bookings.
+- **PostgreSQL for Flight & Booking Data**  
+  - Schema:
 
-- **Automated Email Confirmations**
+~~~sql
+CREATE TABLE users (
+  user_id SERIAL PRIMARY KEY,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('customer','admin')),
+  email VARCHAR(100) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  full_name VARCHAR(100),
+  phone VARCHAR(20),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-  - The system will automatically send email confirmations for new bookings or any changes made to existing bookings, keeping customers informed about their flight statuses.
+CREATE TABLE cities (
+  city_id SERIAL PRIMARY KEY,
+  city_name VARCHAR(100) NOT NULL,
+  country VARCHAR(100),
+  timezone VARCHAR(50), -- e.g. 'America/Toronto'
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-- **PostgreSQL for Flight and Booking Data**
-  - The following UML diagram shows the draft database schema of our project:</br>
-    ![Database Schema](https://github.com/GuanhongW/ECE1724ReactProject/blob/proposal/database%20schema.png)
+CREATE TABLE airports (
+  airport_id SERIAL PRIMARY KEY,
+  city_id INT REFERENCES cities(city_id) ON DELETE CASCADE,
+  airport_code VARCHAR(10) UNIQUE NOT NULL, -- e.g. YYZ
+  airport_name VARCHAR(150) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-#### **Optional Features**
+CREATE TABLE airlines (
+  airline_id SERIAL PRIMARY KEY,
+  airline_name VARCHAR(100) NOT NULL,
+  airline_code VARCHAR(10) UNIQUE NOT NULL, -- e.g. AC
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-If the core features are implemented before the deadline, the team will work on the following optional features:
+CREATE TABLE routes (
+  route_id SERIAL PRIMARY KEY,
+  airline_id INT REFERENCES airlines(airline_id),
+  origin_airport_id INT REFERENCES airports(airport_id),
+  destination_airport_id INT REFERENCES airports(airport_id),
+  domestic BOOLEAN DEFAULT TRUE,
+  seasonal BOOLEAN DEFAULT FALSE,
+  active BOOLEAN DEFAULT TRUE,
+  notes TEXT
+);
 
-- **Google Account Login**: Users can log in with Google.
-- **User Reviews**: After their flights, customers can leave reviews, helping future travelers make informed decisions.
-- **Flight Check-in**: Customers will be able to check in for their flights within 24 hours of departure. A real-time dashboard on their homepage will show flights that have been checked in.
-- **Tiered Pricing & Discount Codes**: Administrators can set different pricing for seats in various cabins, as well as create discount codes that customers can use when booking tickets.
+CREATE TABLE flights (
+  flight_id SERIAL PRIMARY KEY,
+  airline_id INT REFERENCES airlines(airline_id),
+  departure_airport_id INT REFERENCES airports(airport_id),
+  arrival_airport_id INT REFERENCES airports(airport_id),
+  departure_time TIMESTAMPTZ NOT NULL, -- stored in UTC
+  arrival_time TIMESTAMPTZ NOT NULL,   -- stored in UTC
+  flight_duration INTERVAL GENERATED ALWAYS AS (arrival_time - departure_time) STORED,
+  base_price NUMERIC(10,2) NOT NULL,
+  seat_capacity INT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-#### **Technology Stack**
+CREATE TABLE seats (
+  seat_id SERIAL PRIMARY KEY,
+  flight_id INT REFERENCES flights(flight_id) ON DELETE CASCADE,
+  seat_number VARCHAR(5) NOT NULL, -- e.g. '12A'
+  class VARCHAR(20) NOT NULL CHECK (class IN ('economy','business','first')),
+  price_modifier NUMERIC(5,2) DEFAULT 1.0, -- 1.2 = +20%
+  is_available BOOLEAN DEFAULT TRUE,
+  UNIQUE (flight_id, seat_number)
+);
 
-- **Frontend**: React + Tailwind CSS for a modular, responsive UI.
-- **Backend**: Express.js for APIs, PostgreSQL for structured data.
-- **Cloud Storage**: Handle necessary file processing (e.g., ticket receipts).
-- **API Integrations**: Implement email notifications for bookings.
+CREATE TABLE bookings (
+  booking_id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(user_id),
+  flight_id INT REFERENCES flights(flight_id),
+  seat_id INT REFERENCES seats(seat_id),
+  booking_time TIMESTAMPTZ DEFAULT NOW(),
+  status VARCHAR(20) NOT NULL CHECK (status IN ('pending','confirmed','cancelled')),
+  total_price NUMERIC(10,2),
+  confirmation_code VARCHAR(12) UNIQUE,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-Regarding the frontend, the team will use React for UI development, ensuring a modular, efficient, and dynamic user experience. React’s component-based structure allows for reusability and easy maintenance, making it an ideal choice for building a responsive and interactive flight booking platform. Tailwind CSS will be utilized for styling, enabling a responsive and aesthetically pleasing interface that adapts well to different screen sizes. Its utility-first approach ensures rapid development while maintaining consistency in design. Additionally, the team will employ shadcn/ui or similar component libraries to enhance UI consistency and improve development efficiency.
+CREATE TABLE customer_info (
+  info_id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
+  passport_number VARCHAR(30),
+  nationality VARCHAR(50),
+  date_of_birth DATE,
+  gender VARCHAR(10),
+  address TEXT,
+  emergency_contact_name VARCHAR(100),
+  emergency_contact_phone VARCHAR(20)
+);
+~~~
 
-We will use PostgreSQL as our relational database to store flight schedules, user information, and booking records efficiently. PostgreSQL’s support for complex queries, ACID compliance, and scalability makes it a robust choice for handling structured flight and booking data. Cloud storage will be integrated to handle any necessary file processing, such as ticket receipts or user profiles.
 
-The architecture will have separate frontend and backend to ensure flexibility and maintainability. The frontend will be a React-based interface that interacts with the backend through RESTful APIs, allowing for a clear separation of concerns. The backend will be an Express.js server that manages authentication, flight data, booking logic, and email confirmations. By implementing a well-structured RESTful API, we will ensure modularity and scalability, making it easier to extend or modify the system as needed.
+#### Advanced Features
 
-Regarding advanced features, the team will implement user authentication and authorization and API integration with external services. Our login system will provide authentication features based on credentials with MFA. Also, the system will provide authorization features based on the role of the user. For the API integration with external services, we plan to enable email communication for all booking actions in the FightGo system. For example, when the user books a flight in the system, the backend service will trigger an email confirmation to the user's email address.
+- **User Authentication**  
+  - Google sign-in via OAuth/OpenID; token exchange at backend; secure token storage; link to existing accounts by email.
 
-The project will focus on building a secure and smooth flight booking system. The core features listed above will be completed first within the six-week timeframe. The core features will allow users to manage and search for flights, select seats interactively, and complete reservations smoothly. If time is allowed, we will implement the above optional features based on the progress. The goal is to complete all core features before the deadline of the project.
+- **Push Notifications**  
+  - Register Expo push tokens at login.  
+  - Booking lifecycle alerts (departure reminders, delay updates); deep-link to the relevant screen.
+
+
+#### Optional Features (post-core, if time permits)
+
+- **Nearest Airport Suggestion**  
+  - Use `expo-location` on launch (with permission) to prefill departure with the nearest airport.
+
+
+#### How this fulfills course requirements
+
+- React Native + Expo + TypeScript: strict typing across UI, navigation, API.  
+- Navigation & data passing: Expo Router, dynamic routes, typed params.  
+- State & persistence: Context/`useReducer` + AsyncStorage/SecureStore.  
+- Notifications: at least one local notification; push as advanced.  
+- Backend integration: live REST API, real-time fetch, robust error handling, API-driven navigation.  
+- Deployment: EAS builds with testable links; API/DB containerized for reliability.  
+- Advanced features (≥2): Google login + Push notifications.
+
+
+#### Scope Control
+
+MVP covers Search → Detail/Seat → Checkout → Confirmation → Bookings, plus basic admin CRUD. Payments use a mock to limit risk.
+
+
+#### Timeline (6 sprints)
+
+- **S1:** scaffold + navigation  
+- **S2:** search/results API  
+- **S3:** booking + seat map  
+- **S4:** auth (email/password) + bookings  
+- **S5:** admin + local notifications  
+- **S6:** polish, Google OAuth + push, EAS builds
 
 ---
 
 ### 3. Tentative Plan
 
-Our four-member team will collaborate closely to develop FlightGo within six weeks before the course deadline.
+We split responsibilities by user role (customer/admin) and application layer (frontend/backend). Each member owns clear deliverables and meets at defined integration points. Agile sprints, weekly meetings, and GitHub Projects drive execution.
 
-#### **Backend Roles**
+**Yiyang Wang — Backend (Admin & Data Model/Infra)**
+- DB schema/migrations (cities, airports, routes, flights [UTC], prices, seats, bookings).
+- RBAC middleware; Admin CRUD (prices/capacity/flight schedule); booking oversight.
+- OpenAPI (single source) → Swagger UI + Postman collection.
+- PDF receipt & object storage (optional if time is tight); seat-hold cleanup job.
+- Deploy API/DB (Docker Compose on a small VM); observability basics.
 
-- **Guanhong Wu**
+**Zihan Wan — Backend (Customer APIs & Auth)**
+- Auth: email + password, MFA (email code), JWT; Google OAuth token exchange.
+- Customer APIs: airports/routes/flights search; booking create/cancel (with seat hold + DB transaction); user profile.
+- Validation/middleware; unit tests; seed data for users & public refs.
+- In-app/push event emitters for booking lifecycle.
 
-  - **Database Schema Design**: Design and finalize the database schema to ensure efficient data storage and retrieval.
-  - **User Authentication System**: Implement user registration, login, and multi-factor authentication (MFA) for secure access.
-  - **Email Notification Service**: Develop APIs to send email confirmations for bookings and updates.
+**Yuan Wang — Mobile Frontend (Admin & Platform)**
+- Admin screens: cities, airports, routes, flights, prices, seats; booking list/actions.
+- Auth UI: register/login, Google sign-in, MFA; SecureStore; route guards.
+- Push notifications (Expo Push); deep links to `/booking/[id]`; settings/opt-in.
+- CI for mobile (builds on PR); QA checklist; accessibility pass.
 
-- **Gan Yang**
-  - **Flight Booking APIs**: Implement backend logic for searching flights, booking flights, and canceling bookings.
-  - **Seat Selection APIs**: Implement backend logic for selecting seats and modifying seat selections.
-  - **Flight Management APIs**: Develop admin functionalities for adding, updating, and deleting flights in the system.
+**Yiyang Liu — Mobile Frontend (Customer App)**
+- Expo RN + TypeScript scaffold; Expo Router structure.
+- Screens: Search, Results, Flight Detail & Seat Map, Checkout, Confirmation, Bookings, Profile.
+- State: Context + reducer; AsyncStorage (prefs/last search); error/loading UX.
+- Payment page (mock validation); local notifications; EAS builds (dev/preview/prod).
 
-#### **Frontend Roles**
+#### Collaboration & Integration
 
-- **Yiyang Wang**
+- **Weekly meeting (Google Meet):** Frontend (Expo RN) and backend (Express + PostgreSQL) proceed in parallel: start with mock data, then swap to stable APIs. OpenAPI keeps contracts aligned.
+- **Version control (GitHub):** We will manage project code through feature branches and merges to ensure code consistency and prevent conflicts. 
+- **Deployment:** Deploy API/DB via Docker Compose locally and a small cloud VM; mobile builds via Expo EAS (dev/preview/prod). 
+- **Final phase focus:** End-to-end integration (Google sign-in, booking flow, push notifications), then testing, accessibility pass, and polish before submission.
 
-  - **Flight Search Interface**: Develop React components for search filters (date, location, price range, airlines).
-  - **Seat Selection Interface**: Implement visual seat selection.
-  - **Flight Booking Interface**: UI for booking process.
-
-- **Jiaqi Wang**
-  - **User Authentication & Profile Management**: User registration, login, and account management.
-  - **Booking Management Interface**: Dashboard for users to view, modify, or cancel bookings.
-  - **Admin Page for Flight Management**: Interface for administrators to manage flights.
-
-#### **Collaboration & Integration**
-
-- Weekly meetings to track progress and discuss issues.
-- Parallel frontend and backend development based on aligned APIs, with the frontend using dummy data initially.
-- Git for version control, using feature branches and merges.
-
-We will follow an agile approach, iterating through development and regular evaluations. With clear roles, strong teamwork, and structured planning, we are confident in delivering a fully functional, high-quality flight booking system within the six-week timeframe.
+The project is scoped for delivery within the course timeframe. Each team member has distinct, non-overlapping responsibilities to minimize conflicts. Early use of mock data ensures frontend progress while the backend stabilizes. We’ve already planned for deployment, testing, and fallback options. All core and advanced features align with course requirements, and the team’s skill sets and weekly coordination make this execution plan realistic and sustainable.
