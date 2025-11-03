@@ -7,7 +7,7 @@ async function main() {
   console.log("🌱 Starting seed...");
 
   // ============================================
-  // 1. Create Admin User
+  // 1. Create Admin + Customer Users
   // ============================================
   const adminEmail = "admin@123.com";
   const adminPassword = "admin123";
@@ -31,6 +31,76 @@ async function main() {
       email: admin.email,
       role: admin.role,
     });
+  }
+
+  console.log("\n🧑‍💼 Creating demo customers...");
+
+  const customers = [
+    {
+      email: "customer.one@example.com",
+      password: "password123",
+      info: {
+        full_name: "Alex Johnson",
+        phone: "+14165550100",
+        passport_number: "CA1234567",
+        date_of_birth: new Date("1992-05-15"),
+        emergency_contact_name: "Taylor Johnson",
+        emergency_contact_phone: "+14165550999",
+      },
+    },
+    {
+      email: "customer.two@example.com",
+      password: "password123",
+      info: {
+        full_name: "Morgan Lee",
+        phone: "+16045550111",
+        passport_number: "CA7654321",
+        date_of_birth: new Date("1988-11-02"),
+        emergency_contact_name: "Jordan Lee",
+        emergency_contact_phone: "+16045550777",
+      },
+    },
+  ];
+
+  for (const customer of customers) {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: customer.email },
+      include: { customer_info: true },
+    });
+
+    let userId: number;
+
+    if (existingUser) {
+      userId = existingUser.user_id;
+      console.log(`✅ Customer user already exists: ${customer.email}`);
+    } else {
+      const passwordHash = await bcrypt.hash(customer.password, 10);
+      const user = await prisma.user.create({
+        data: {
+          email: customer.email,
+          password_hash: passwordHash,
+          role: "customer",
+        },
+      });
+      userId = user.user_id;
+      console.log(`✅ Created customer user: ${customer.email}`);
+    }
+
+    if (!existingUser?.customer_info) {
+      await prisma.customerInfo.upsert({
+        where: { user_id: userId },
+        create: {
+          user_id: userId,
+          ...customer.info,
+        },
+        update: {
+          ...customer.info,
+        },
+      });
+      console.log(`   ↳ Added passenger profile for ${customer.email}`);
+    } else {
+      console.log(`   ↳ Passenger profile already exists for ${customer.email}`);
+    }
   }
 
   // ============================================
@@ -235,6 +305,10 @@ async function main() {
   console.log("\n📊 Seed Summary:");
   console.log("================");
   console.log(`Admin: ${adminEmail} / ${adminPassword}`);
+  console.log("Customers:");
+  customers.forEach((customer) => {
+    console.log(` - ${customer.email} / ${customer.password}`);
+  });
   console.log(`Cities: ${cities.length}`);
   console.log(`Airports: ${airports.length}`);
   console.log(`Airlines: ${airlines.length}`);
