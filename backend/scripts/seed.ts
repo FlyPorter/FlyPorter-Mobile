@@ -172,7 +172,7 @@ async function main() {
 
   const flights = [
     {
-      route_id: createdRoutes[0].route_id, // YYZ → YVR
+      route_id: createdRoutes[0]!.route_id, // YYZ → YVR
       airline_code: "FP",
       departure_time: tomorrow,
       arrival_time: new Date(tomorrow.getTime() + 5 * 60 * 60 * 1000), // +5 hours
@@ -180,7 +180,7 @@ async function main() {
       seat_capacity: 24,
     },
     {
-      route_id: createdRoutes[1].route_id, // YVR → YYZ
+      route_id: createdRoutes[1]!.route_id, // YVR → YYZ
       airline_code: "FP",
       departure_time: nextWeek,
       arrival_time: new Date(nextWeek.getTime() + 5 * 60 * 60 * 1000), // +5 hours
@@ -188,7 +188,7 @@ async function main() {
       seat_capacity: 24,
     },
     {
-      route_id: createdRoutes[2].route_id, // YYZ → YUL
+      route_id: createdRoutes[2]!.route_id, // YYZ → YUL
       airline_code: "AC",
       departure_time: new Date(tomorrow.getTime() + 3 * 60 * 60 * 1000), // tomorrow 11am
       arrival_time: new Date(tomorrow.getTime() + 4 * 60 * 60 * 1000), // +1 hour
