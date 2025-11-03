@@ -23,6 +23,11 @@
 
 You are now ready to follow the customer booking journey end-to-end.
 
+5. **Demo customers (seeded)**
+   - `customer.one@example.com` / `password123`
+   - `customer.two@example.com` / `password123`
+   - Both accounts already include passenger profiles, so you can log in and book immediately.
+
 ---
 
 ## 📂 Collection Overview
@@ -58,6 +63,7 @@ Follow these steps in order to simulate the user story:
 - Requests: `POST /auth/register` or `POST /auth/login`
 - Folder: `Auth`
 - Result: saves `authToken` and `userId` for authenticated calls
+- Tip: use the seeded accounts above to skip profile setup—they already include name, passport, and DOB.
 
 ### 4. Complete Passenger Profile (Required)
 - Request: `PATCH /profile`
