@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
+import DatePicker from '../../components/DatePicker';
+import AirportAutocomplete from '../../components/AirportAutocomplete';
 
 export default function FlightSearchScreen({ navigation }: any) {
   const { isAuthenticated, user } = useAuth();
@@ -23,7 +26,7 @@ export default function FlightSearchScreen({ navigation }: any) {
 
   const handleSearch = () => {
     if (!origin || !destination || !departDate) {
-      alert('Please fill in all required fields');
+      Alert.alert('Missing Information', 'Please fill in all required fields');
       return;
     }
 
@@ -101,75 +104,67 @@ export default function FlightSearchScreen({ navigation }: any) {
 
         {/* Search Form */}
         <View style={styles.searchCard}>
-          {/* Origin */}
-          <View style={styles.inputGroup}>
-            <View style={styles.inputLabelRow}>
-              <Ionicons name="airplane" size={20} color={colors.primary} />
-              <Text style={styles.inputLabel}>From</Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="City or airport"
-              value={origin}
-              onChangeText={setOrigin}
-              autoCapitalize="words"
-            />
-          </View>
-
-          {/* Swap Button */}
-          <TouchableOpacity style={styles.swapButton} onPress={swapLocations}>
-            <Ionicons name="swap-vertical" size={24} color={colors.primary} />
-          </TouchableOpacity>
-
-          {/* Destination */}
-          <View style={styles.inputGroup}>
-            <View style={styles.inputLabelRow}>
-              <Ionicons name="location" size={20} color={colors.primary} />
-              <Text style={styles.inputLabel}>To</Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              placeholder="City or airport"
-              value={destination}
-              onChangeText={setDestination}
-              autoCapitalize="words"
-            />
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* Dates */}
-          <View style={styles.dateRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: spacing.sm }]}>
-              <View style={styles.inputLabelRow}>
-                <Ionicons name="calendar" size={20} color={colors.primary} />
-                <Text style={styles.inputLabel}>Depart</Text>
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
-                value={departDate}
-                onChangeText={setDepartDate}
+          {/* Location Cards - Compact */}
+          <View style={styles.locationRow}>
+            <View style={styles.locationCard}>
+              <AirportAutocomplete
+                value={origin}
+                onChange={setOrigin}
+                placeholder="Select origin"
+                compact={true}
               />
             </View>
 
-            {tripType === 'round-trip' && (
-              <View style={[styles.inputGroup, { flex: 1, marginLeft: spacing.sm }]}>
-                <View style={styles.inputLabelRow}>
-                  <Ionicons name="calendar" size={20} color={colors.primary} />
-                  <Text style={styles.inputLabel}>Return</Text>
-                </View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="YYYY-MM-DD"
-                  value={returnDate}
-                  onChangeText={setReturnDate}
-                />
-              </View>
-            )}
+            <TouchableOpacity style={styles.swapButtonCompact} onPress={swapLocations}>
+              <Ionicons name="swap-horizontal" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+
+            <View style={styles.locationCard}>
+              <AirportAutocomplete
+                value={destination}
+                onChange={setDestination}
+                placeholder="Select destination"
+                compact={true}
+              />
+            </View>
           </View>
 
-          <View style={styles.divider} />
+          {/* Date Card - Compact */}
+          <View style={styles.dateCard}>
+            <View style={styles.dateRowCompact}>
+              <View style={styles.dateSection}>
+                <Ionicons name="calendar" size={16} color={colors.primary} />
+                <View style={styles.dateInfo}>
+                  <Text style={styles.dateLabel}>Depart</Text>
+                  <DatePicker
+                    value={departDate}
+                    onChange={setDepartDate}
+                    placeholder="Select date"
+                    minimumDate={new Date().toISOString().split('T')[0]}
+                    compact={true}
+                  />
+                </View>
+              </View>
+
+              {tripType === 'round-trip' && (
+                <>
+                  <View style={styles.dateDivider} />
+                  <View style={styles.dateSection}>
+                    <View style={styles.dateInfo}>
+                      <Text style={styles.dateLabel}>Return</Text>
+                      <DatePicker
+                        value={returnDate}
+                        onChange={setReturnDate}
+                        placeholder="Select date"
+                        minimumDate={departDate || new Date().toISOString().split('T')[0]}
+                        compact={true}
+                      />
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
 
           {/* Passengers */}
           <View style={styles.inputGroup}>
@@ -281,8 +276,9 @@ const styles = StyleSheet.create({
   searchCard: {
     backgroundColor: '#fff',
     margin: spacing.md,
-    padding: spacing.lg,
+    padding: spacing.md,
     borderRadius: 12,
+    gap: spacing.sm,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -294,6 +290,59 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
     }),
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  locationCard: {
+    flex: 1,
+    backgroundColor: colors.surface || '#f5f5f5',
+    borderRadius: 12,
+    padding: spacing.sm,
+    minHeight: 70,
+    justifyContent: 'center',
+  },
+  swapButtonCompact: {
+    padding: spacing.xs,
+    alignSelf: 'center',
+  },
+  dateCard: {
+    backgroundColor: colors.surface || '#f5f5f5',
+    borderRadius: 12,
+    padding: spacing.md,
+  },
+  dateRowCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  dateSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  dateInfo: {
+    flex: 1,
+  },
+  dateLabel: {
+    ...typography.body2,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  dateDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.border,
+  },
+  compactAutocomplete: {
+    marginBottom: 0,
+  },
+  compactDatePicker: {
+    marginBottom: 0,
   },
   inputGroup: {
     marginBottom: spacing.md,
