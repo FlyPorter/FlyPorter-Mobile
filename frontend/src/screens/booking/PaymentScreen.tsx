@@ -177,7 +177,7 @@ export default function PaymentScreen({ route, navigation }: any) {
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Seats</Text>
               <Text style={styles.summaryValue}>
-                {selectedSeats.map((s: any) => `${s.row}${s.column}`).join(', ')}
+                {selectedSeats.map(s => `${s.row}${s.column}`).join(', ')}
               </Text>
             </View>
 

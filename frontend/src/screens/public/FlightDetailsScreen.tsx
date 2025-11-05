@@ -12,40 +12,15 @@ import { colors, spacing, typography } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 
 export default function FlightDetailsScreen({ route, navigation }: any) {
-  const { 
-    flight, 
-    outboundFlight, 
-    returnFlight, 
-    passengers, 
-    isRoundTrip 
-  } = route.params;
+  const { flight, passengers } = route.params;
   const { isAuthenticated } = useAuth();
-
-  // Use the appropriate flight(s) based on trip type
-  const mainFlight = isRoundTrip ? outboundFlight : flight;
 
   const handleBookFlight = () => {
     if (!isAuthenticated) {
       navigation.navigate('Login');
       return;
     }
-    
-    if (isRoundTrip) {
-      // For round trip, pass both flights
-      navigation.navigate('SeatSelection', { 
-        outboundFlight, 
-        returnFlight,
-        passengers,
-        isRoundTrip: true
-      });
-    } else {
-      // For one way, pass single flight
-      navigation.navigate('SeatSelection', { 
-        flight, 
-        passengers,
-        isRoundTrip: false
-      });
-    }
+    navigation.navigate('SeatSelection', { flight, passengers });
   };
 
   return (
@@ -58,29 +33,18 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
               <Ionicons name="airplane" size={32} color={colors.primary} />
             </View>
             <View>
-              <Text style={styles.airlineName}>{mainFlight.airline.name}</Text>
-              <Text style={styles.flightNumber}>
-                {isRoundTrip 
-                  ? `Outbound: ${outboundFlight.flightNumber} | Return: ${returnFlight.flightNumber}`
-                  : `Flight ${flight.flightNumber}`
-                }
-              </Text>
+              <Text style={styles.airlineName}>{flight.airline.name}</Text>
+              <Text style={styles.flightNumber}>Flight {flight.flightNumber}</Text>
             </View>
           </View>
 
           <View style={styles.priceBox}>
             <Text style={styles.priceLabel}>Total Price</Text>
             <Text style={styles.totalPrice}>
-              ${isRoundTrip 
-                ? ((outboundFlight.price + returnFlight.price) * passengers).toFixed(2)
-                : (flight.price * passengers).toFixed(2)
-              }
+              ${(flight.price * passengers).toFixed(2)}
             </Text>
             <Text style={styles.priceBreakdown}>
-              {isRoundTrip 
-                ? `$${outboundFlight.price + returnFlight.price} × ${passengers} passenger${passengers > 1 ? 's' : ''}`
-                : `$${flight.price} × ${passengers} passenger${passengers > 1 ? 's' : ''}`
-              }
+              ${flight.price} × {passengers} passenger{passengers > 1 ? 's' : ''}
             </Text>
           </View>
         </View>
@@ -93,10 +57,10 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
             <View style={styles.routeStop}>
               <View style={styles.routeDot} />
               <View style={styles.routeInfo}>
-                <Text style={styles.routeTime}>{mainFlight.departureTime}</Text>
-                <Text style={styles.routeCode}>{mainFlight.origin.code}</Text>
-                <Text style={styles.routeName}>{mainFlight.origin.name}</Text>
-                <Text style={styles.routeCity}>{mainFlight.origin.city}</Text>
+                <Text style={styles.routeTime}>{flight.departureTime}</Text>
+                <Text style={styles.routeCode}>{flight.origin.code}</Text>
+                <Text style={styles.routeName}>{flight.origin.name}</Text>
+                <Text style={styles.routeCity}>{flight.origin.city}</Text>
               </View>
             </View>
 
@@ -104,17 +68,17 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
               <View style={styles.routeLine} />
               <View style={styles.durationBox}>
                 <Ionicons name="time" size={16} color={colors.textSecondary} />
-                <Text style={styles.durationText}>{mainFlight.duration}</Text>
+                <Text style={styles.durationText}>{flight.duration}</Text>
               </View>
             </View>
 
             <View style={styles.routeStop}>
               <View style={styles.routeDot} />
               <View style={styles.routeInfo}>
-                <Text style={styles.routeTime}>{mainFlight.arrivalTime}</Text>
-                <Text style={styles.routeCode}>{mainFlight.destination.code}</Text>
-                <Text style={styles.routeName}>{mainFlight.destination.name}</Text>
-                <Text style={styles.routeCity}>{mainFlight.destination.city}</Text>
+                <Text style={styles.routeTime}>{flight.arrivalTime}</Text>
+                <Text style={styles.routeCode}>{flight.destination.code}</Text>
+                <Text style={styles.routeName}>{flight.destination.name}</Text>
+                <Text style={styles.routeCity}>{flight.destination.city}</Text>
               </View>
             </View>
           </View>
@@ -153,7 +117,7 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
               <Ionicons name="checkmark-circle" size={20} color={colors.success} />
               <Text style={styles.detailLabel}>Available Seats</Text>
             </View>
-            <Text style={styles.detailValue}>{mainFlight.availableSeats}</Text>
+            <Text style={styles.detailValue}>{flight.availableSeats}</Text>
           </View>
         </View>
 
@@ -193,10 +157,7 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
         <View style={styles.footerPrice}>
           <Text style={styles.footerPriceLabel}>Total</Text>
           <Text style={styles.footerPriceAmount}>
-            ${isRoundTrip 
-              ? ((outboundFlight.price + returnFlight.price) * passengers).toFixed(2)
-              : (flight.price * passengers).toFixed(2)
-            }
+            ${(flight.price * passengers).toFixed(2)}
           </Text>
         </View>
         <TouchableOpacity

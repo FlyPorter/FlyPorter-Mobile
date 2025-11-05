@@ -8,23 +8,7 @@ export const formatCurrency = (amount: number, currency: string = 'USD'): string
 };
 
 export const formatDate = (date: string | Date, format: 'short' | 'long' = 'short'): string => {
-  let dateObj: Date;
-  
-  if (typeof date === 'string') {
-    // Handle YYYY-MM-DD format
-    if (date.includes('-')) {
-      dateObj = new Date(date + 'T00:00:00');
-    } else {
-      dateObj = new Date(date);
-    }
-  } else {
-    dateObj = date;
-  }
-  
-  // Check if date is valid
-  if (isNaN(dateObj.getTime())) {
-    return date as string; // Return original if invalid
-  }
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
   
   if (format === 'long') {
     return dateObj.toLocaleDateString('en-US', {

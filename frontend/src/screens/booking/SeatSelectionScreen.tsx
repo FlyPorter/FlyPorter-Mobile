@@ -21,17 +21,8 @@ interface Seat {
 }
 
 export default function SeatSelectionScreen({ route, navigation }: any) {
-  const { 
-    flight, 
-    outboundFlight, 
-    returnFlight, 
-    passengers, 
-    isRoundTrip 
-  } = route.params;
+  const { flight, passengers } = route.params;
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  
-  // Use the appropriate flight
-  const currentFlight = isRoundTrip ? outboundFlight : flight;
 
   // Generate mock seat map
   const generateSeats = (): Seat[] => {
@@ -88,13 +79,10 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
     const seatCharges = selectedSeatDetails.reduce((sum, seat) => sum + seat.price, 0);
 
     navigation.navigate('PassengerInfo', {
-      flight: isRoundTrip ? outboundFlight : flight,
-      outboundFlight,
-      returnFlight,
+      flight,
       passengers,
       selectedSeats: selectedSeatDetails,
       seatCharges,
-      isRoundTrip,
     });
   };
 

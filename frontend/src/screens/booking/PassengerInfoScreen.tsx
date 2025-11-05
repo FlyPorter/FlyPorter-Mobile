@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
-import DatePicker from '../../components/DatePicker';
 
 interface PassengerInfo {
   firstName: string;
@@ -122,12 +121,12 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
             </View>
 
             <View style={styles.inputGroup}>
-              <DatePicker
+              <Text style={styles.label}>Date of Birth</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM-DD"
                 value={passenger.dateOfBirth}
-                onChange={(value) => updatePassenger(index, 'dateOfBirth', value)}
-                placeholder="Select date of birth"
-                label="Date of Birth"
-                maximumDate={new Date().toISOString().split('T')[0]}
+                onChangeText={(value) => updatePassenger(index, 'dateOfBirth', value)}
               />
             </View>
           </View>
