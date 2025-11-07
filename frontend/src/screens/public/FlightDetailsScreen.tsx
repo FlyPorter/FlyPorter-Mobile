@@ -12,15 +12,40 @@ import { colors, spacing, typography } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 
 export default function FlightDetailsScreen({ route, navigation }: any) {
-  const { flight, passengers } = route.params;
+  const { 
+    flight, 
+    outboundFlight, 
+    returnFlight, 
+    passengers, 
+    isRoundTrip 
+  } = route.params;
   const { isAuthenticated } = useAuth();
+
+  // Use the appropriate flight(s) based on trip type
+  const mainFlight = isRoundTrip ? outboundFlight : flight;
 
   const handleBookFlight = () => {
     if (!isAuthenticated) {
       navigation.navigate('Login');
       return;
     }
-    navigation.navigate('SeatSelection', { flight, passengers });
+    
+    if (isRoundTrip) {
+      // For round trip, pass both flights
+      navigation.navigate('SeatSelection', { 
+        outboundFlight, 
+        returnFlight,
+        passengers,
+        isRoundTrip: true
+      });
+    } else {
+      // For one way, pass single flight
+      navigation.navigate('SeatSelection', { 
+        flight, 
+        passengers,
+        isRoundTrip: false
+      });
+    }
   };
 
   return (
@@ -33,93 +58,262 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
               <Ionicons name="airplane" size={32} color={colors.primary} />
             </View>
             <View>
-              <Text style={styles.airlineName}>{flight.airline.name}</Text>
-              <Text style={styles.flightNumber}>Flight {flight.flightNumber}</Text>
+              <Text style={styles.airlineName}>{mainFlight.airline.name}</Text>
+              <Text style={styles.flightNumber}>
+                {isRoundTrip 
+                  ? `Outbound: ${outboundFlight.flightNumber} | Return: ${returnFlight.flightNumber}`
+                  : `Flight ${flight.flightNumber}`
+                }
+              </Text>
             </View>
           </View>
 
           <View style={styles.priceBox}>
             <Text style={styles.priceLabel}>Total Price</Text>
             <Text style={styles.totalPrice}>
-              ${(flight.price * passengers).toFixed(2)}
+              ${isRoundTrip 
+                ? ((outboundFlight.price + returnFlight.price) * passengers).toFixed(2)
+                : (flight.price * passengers).toFixed(2)
+              }
             </Text>
             <Text style={styles.priceBreakdown}>
-              ${flight.price} × {passengers} passenger{passengers > 1 ? 's' : ''}
+              {isRoundTrip 
+                ? `$${outboundFlight.price + returnFlight.price} × ${passengers} passenger${passengers > 1 ? 's' : ''}`
+                : `$${flight.price} × ${passengers} passenger${passengers > 1 ? 's' : ''}`
+              }
             </Text>
           </View>
         </View>
 
         {/* Route Information */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Flight Route</Text>
-          
-          <View style={styles.routeContainer}>
-            <View style={styles.routeStop}>
-              <View style={styles.routeDot} />
-              <View style={styles.routeInfo}>
-                <Text style={styles.routeTime}>{flight.departureTime}</Text>
-                <Text style={styles.routeCode}>{flight.origin.code}</Text>
-                <Text style={styles.routeName}>{flight.origin.name}</Text>
-                <Text style={styles.routeCity}>{flight.origin.city}</Text>
+        {isRoundTrip ? (
+          <>
+            {/* Outbound Flight Route */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Outbound Flight</Text>
+              
+              <View style={styles.routeContainer}>
+                <View style={styles.routeStop}>
+                  <View style={styles.routeDot} />
+                  <View style={styles.routeInfo}>
+                    <Text style={styles.routeTime}>{outboundFlight.departureTime}</Text>
+                    <Text style={styles.routeCode}>{outboundFlight.origin.code}</Text>
+                    <Text style={styles.routeName}>{outboundFlight.origin.name}</Text>
+                    <Text style={styles.routeCity}>{outboundFlight.origin.city}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.routeConnector}>
+                  <View style={styles.routeLine} />
+                  <View style={styles.durationBox}>
+                    <Ionicons name="time" size={16} color={colors.textSecondary} />
+                    <Text style={styles.durationText}>{outboundFlight.duration}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.routeStop}>
+                  <View style={styles.routeDot} />
+                  <View style={styles.routeInfo}>
+                    <Text style={styles.routeTime}>{outboundFlight.arrivalTime}</Text>
+                    <Text style={styles.routeCode}>{outboundFlight.destination.code}</Text>
+                    <Text style={styles.routeName}>{outboundFlight.destination.name}</Text>
+                    <Text style={styles.routeCity}>{outboundFlight.destination.city}</Text>
+                  </View>
+                </View>
               </View>
             </View>
 
-            <View style={styles.routeConnector}>
-              <View style={styles.routeLine} />
-              <View style={styles.durationBox}>
-                <Ionicons name="time" size={16} color={colors.textSecondary} />
-                <Text style={styles.durationText}>{flight.duration}</Text>
+            {/* Return Flight Route */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Return Flight</Text>
+              
+              <View style={styles.routeContainer}>
+                <View style={styles.routeStop}>
+                  <View style={styles.routeDot} />
+                  <View style={styles.routeInfo}>
+                    <Text style={styles.routeTime}>{returnFlight.departureTime}</Text>
+                    <Text style={styles.routeCode}>{returnFlight.origin.code}</Text>
+                    <Text style={styles.routeName}>{returnFlight.origin.name}</Text>
+                    <Text style={styles.routeCity}>{returnFlight.origin.city}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.routeConnector}>
+                  <View style={styles.routeLine} />
+                  <View style={styles.durationBox}>
+                    <Ionicons name="time" size={16} color={colors.textSecondary} />
+                    <Text style={styles.durationText}>{returnFlight.duration}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.routeStop}>
+                  <View style={styles.routeDot} />
+                  <View style={styles.routeInfo}>
+                    <Text style={styles.routeTime}>{returnFlight.arrivalTime}</Text>
+                    <Text style={styles.routeCode}>{returnFlight.destination.code}</Text>
+                    <Text style={styles.routeName}>{returnFlight.destination.name}</Text>
+                    <Text style={styles.routeCity}>{returnFlight.destination.city}</Text>
+                  </View>
+                </View>
               </View>
             </View>
+          </>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Flight Route</Text>
+            
+            <View style={styles.routeContainer}>
+              <View style={styles.routeStop}>
+                <View style={styles.routeDot} />
+                <View style={styles.routeInfo}>
+                  <Text style={styles.routeTime}>{mainFlight.departureTime}</Text>
+                  <Text style={styles.routeCode}>{mainFlight.origin.code}</Text>
+                  <Text style={styles.routeName}>{mainFlight.origin.name}</Text>
+                  <Text style={styles.routeCity}>{mainFlight.origin.city}</Text>
+                </View>
+              </View>
 
-            <View style={styles.routeStop}>
-              <View style={styles.routeDot} />
-              <View style={styles.routeInfo}>
-                <Text style={styles.routeTime}>{flight.arrivalTime}</Text>
-                <Text style={styles.routeCode}>{flight.destination.code}</Text>
-                <Text style={styles.routeName}>{flight.destination.name}</Text>
-                <Text style={styles.routeCity}>{flight.destination.city}</Text>
+              <View style={styles.routeConnector}>
+                <View style={styles.routeLine} />
+                <View style={styles.durationBox}>
+                  <Ionicons name="time" size={16} color={colors.textSecondary} />
+                  <Text style={styles.durationText}>{mainFlight.duration}</Text>
+                </View>
+              </View>
+
+              <View style={styles.routeStop}>
+                <View style={styles.routeDot} />
+                <View style={styles.routeInfo}>
+                  <Text style={styles.routeTime}>{mainFlight.arrivalTime}</Text>
+                  <Text style={styles.routeCode}>{mainFlight.destination.code}</Text>
+                  <Text style={styles.routeName}>{mainFlight.destination.name}</Text>
+                  <Text style={styles.routeCity}>{mainFlight.destination.city}</Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Flight Details */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Flight Details</Text>
-          
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="calendar" size={20} color={colors.textSecondary} />
-              <Text style={styles.detailLabel}>Date</Text>
-            </View>
-            <Text style={styles.detailValue}>March 15, 2024</Text>
-          </View>
+        {isRoundTrip ? (
+          <>
+            {/* Outbound Flight Details */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Outbound Flight Details</Text>
+              
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="calendar" size={20} color={colors.textSecondary} />
+                  <Text style={styles.detailLabel}>Depart Date</Text>
+                </View>
+                <Text style={styles.detailValue}>
+                  {outboundFlight.departureDate || 'March 15, 2024'}
+                </Text>
+              </View>
 
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="people" size={20} color={colors.textSecondary} />
-              <Text style={styles.detailLabel}>Passengers</Text>
-            </View>
-            <Text style={styles.detailValue}>{passengers}</Text>
-          </View>
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="people" size={20} color={colors.textSecondary} />
+                  <Text style={styles.detailLabel}>Passengers</Text>
+                </View>
+                <Text style={styles.detailValue}>{passengers}</Text>
+              </View>
 
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="airplane" size={20} color={colors.textSecondary} />
-              <Text style={styles.detailLabel}>Aircraft</Text>
-            </View>
-            <Text style={styles.detailValue}>Boeing 737-800</Text>
-          </View>
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="airplane" size={20} color={colors.textSecondary} />
+                  <Text style={styles.detailLabel}>Aircraft</Text>
+                </View>
+                <Text style={styles.detailValue}>Boeing 737-800</Text>
+              </View>
 
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-              <Text style={styles.detailLabel}>Available Seats</Text>
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  <Text style={styles.detailLabel}>Available Seats</Text>
+                </View>
+                <Text style={styles.detailValue}>{outboundFlight.availableSeats}</Text>
+              </View>
             </View>
-            <Text style={styles.detailValue}>{flight.availableSeats}</Text>
+
+            {/* Return Flight Details */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Return Flight Details</Text>
+              
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="calendar" size={20} color={colors.textSecondary} />
+                  <Text style={styles.detailLabel}>Return Date</Text>
+                </View>
+                <Text style={styles.detailValue}>
+                  {returnFlight.departureDate || 'March 20, 2024'}
+                </Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="people" size={20} color={colors.textSecondary} />
+                  <Text style={styles.detailLabel}>Passengers</Text>
+                </View>
+                <Text style={styles.detailValue}>{passengers}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="airplane" size={20} color={colors.textSecondary} />
+                  <Text style={styles.detailLabel}>Aircraft</Text>
+                </View>
+                <Text style={styles.detailValue}>Boeing 737-800</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  <Text style={styles.detailLabel}>Available Seats</Text>
+                </View>
+                <Text style={styles.detailValue}>{returnFlight.availableSeats}</Text>
+              </View>
+            </View>
+          </>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Flight Details</Text>
+            
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="calendar" size={20} color={colors.textSecondary} />
+                <Text style={styles.detailLabel}>Date</Text>
+              </View>
+              <Text style={styles.detailValue}>
+                {flight.departureDate || 'March 15, 2024'}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="people" size={20} color={colors.textSecondary} />
+                <Text style={styles.detailLabel}>Passengers</Text>
+              </View>
+              <Text style={styles.detailValue}>{passengers}</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="airplane" size={20} color={colors.textSecondary} />
+                <Text style={styles.detailLabel}>Aircraft</Text>
+              </View>
+              <Text style={styles.detailValue}>Boeing 737-800</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                <Text style={styles.detailLabel}>Available Seats</Text>
+              </View>
+              <Text style={styles.detailValue}>{mainFlight.availableSeats}</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Amenities */}
         <View style={styles.card}>
@@ -157,7 +351,10 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
         <View style={styles.footerPrice}>
           <Text style={styles.footerPriceLabel}>Total</Text>
           <Text style={styles.footerPriceAmount}>
-            ${(flight.price * passengers).toFixed(2)}
+            ${isRoundTrip 
+              ? ((outboundFlight.price + returnFlight.price) * passengers).toFixed(2)
+              : (flight.price * passengers).toFixed(2)
+            }
           </Text>
         </View>
         <TouchableOpacity

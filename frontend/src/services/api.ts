@@ -1,11 +1,26 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // Backend API configuration
-// For iOS Simulator: use 'http://localhost:3000/api'
-// For Android Emulator: use 'http://10.0.2.2:3000/api'
-// For Physical Device: use 'http://YOUR_COMPUTER_IP:3000/api'
-const API_BASE_URL = 'http://localhost:3000/api';
+// Automatically detect the platform and use appropriate URL
+const getApiBaseUrl = () => {
+  // Check if there's an environment variable
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  
+  // Platform-specific defaults
+  if (Platform.OS === 'android') {
+    // Android Emulator uses 10.0.2.2 to access host machine's localhost
+    return 'http://10.0.2.2:3000/api';
+  } else {
+    // iOS Simulator and others can use localhost
+    return 'http://localhost:3000/api';
+  }
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -36,6 +51,16 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    // Handle network errors
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      console.error('Network Error: Unable to connect to backend server');
+      console.error('API Base URL:', API_BASE_URL);
+      console.error('Make sure backend server is running on port 3000');
+      console.error('For Android Emulator, use: http://10.0.2.2:3000/api');
+      console.error('For iOS Simulator, use: http://localhost:3000/api');
+      console.error('For Physical Device, use: http://YOUR_COMPUTER_IP:3000/api');
+    }
+    
     if (error.response?.status === 401) {
       // Token expired or invalid
       await AsyncStorage.removeItem('token');

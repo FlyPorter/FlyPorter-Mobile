@@ -110,6 +110,10 @@ export default function RegisterScreen({ navigation }: any) {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                autoComplete="off"
+                autoCorrect={false}
+                textContentType="newPassword"
+                passwordRules="minlength: 6;"
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -126,14 +130,29 @@ export default function RegisterScreen({ navigation }: any) {
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Confirm Password *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Re-enter password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Re-enter password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoComplete="off"
+                autoCorrect={false}
+                textContentType="newPassword"
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off' : 'eye'}
+                  size={24}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
