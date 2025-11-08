@@ -128,6 +128,9 @@ Under `backend` folder:
    This creates:
 
    - Admin user: `admin@123.com` / `admin123`
+   - Demo customer user with passenger profiles: 
+      - `customer.one@example.com` / `password123`
+      - `customer.two@example.com` / `password123`
    - 4 Cities: Toronto, Vancouver, Montreal, Ottawa
    - 4 Airports: YYZ, YVR, YUL, YOW
    - 2 Airlines: FlyPorter, Air Canada
