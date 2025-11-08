@@ -1,6 +1,27 @@
+# FlyPorter
+
+## Table of Contents
+
+- [Team Information](#team-information)
+- [Video Demo](#video-demo)
+- [Motivation](#motivation)
+- [Objectives](#objectives)
+- [Technical Stack](#technical-stack)
+- [Features](#features)
+- [User Guide](#user-guide)
+- [Development Guide](#development-guide)
+- [Contribution Guidelines](#contribution-guidelines)
+- [Deployment Information](#deployment-information)
+- [Individual Contributions](#individual-contributions)
+- [Lessons Learned and Concluding Remarks](#lessons-learned-and-concluding-remarks)
+
+---
+
 Backend stack: Express.js + TypeScript + Prisma + PostgreSQL
 
-- [Development Guide](#development-guide)
+## Development Guide
+
+backend:
 
 admin account:
 
