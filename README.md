@@ -128,9 +128,9 @@ Under `backend` folder:
    This creates:
 
    - Admin user: `admin@123.com` / `admin123`
-   - Demo customer user with passenger profiles: 
-      - `customer.one@example.com` / `password123`
-      - `customer.two@example.com` / `password123`
+   - Demo customer user with passenger profiles:
+     - `customer.one@example.com` / `password123`
+     - `customer.two@example.com` / `password123`
    - 4 Cities: Toronto, Vancouver, Montreal, Ottawa
    - 4 Airports: YYZ, YVR, YUL, YOW
    - 2 Airlines: FlyPorter, Air Canada
@@ -198,3 +198,47 @@ The environment is used to store the authentication token after login (the token
 
 All sample inputs (parameters, request bodies) are pre-configured.  
 As a developer, you do not need to manually input anything — just select the API you want to test and click Send.
+
+### Docker Instruction
+
+### 1. Start Docker
+
+Open **Docker Desktop** and verify it’s running:
+
+```sh
+docker --version
+docker info
+```
+
+---
+
+### 2. Build and Run with Docker Compose
+
+```sh
+docker compose build
+```
+
+Run in foreground:
+
+```sh
+docker compose up
+```
+
+Or run in background:
+
+```sh
+docker compose up -d
+```
+
+---
+
+### Optional Commands
+
+```sh
+docker ps                 # list running containers
+docker compose down       # stop and remove containers
+```
+
+```
+
+```
