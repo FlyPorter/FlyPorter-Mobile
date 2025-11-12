@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../config/prisma.js";
 import { env } from "../config/env.js";
 
@@ -269,7 +270,7 @@ function getSpacesClient(): S3Client {
     spacesClient = new S3Client({
       region: env.SPACES_REGION,
       endpoint: env.SPACES_ENDPOINT,
-      forcePathStyle: false,
+      forcePathStyle: true, // Use path-style URLs for Digital Ocean Spaces
       credentials: {
         accessKeyId: env.SPACES_ACCESS_KEY,
         secretAccessKey: env.SPACES_SECRET_KEY,
@@ -286,17 +287,33 @@ function buildPublicUrl(key: string) {
     return `${base}/${key}`;
   }
 
-  const endpointHost = (() => {
-    try {
-      return new URL(env.SPACES_ENDPOINT).host;
-    } catch (error) {
-      return env.SPACES_ENDPOINT.replace(/^https?:\/\//, "");
-    }
-  })();
-
-  return `https://${env.SPACES_BUCKET}.${endpointHost}/${key}`;
+  // Use path-style URL format for Digital Ocean Spaces
+  // Format: https://tor1.digitaloceanspaces.com/bucket-name/key
+  const endpointBase = env.SPACES_ENDPOINT.replace(/\/+$/, "");
+  return `${endpointBase}/${env.SPACES_BUCKET}/${key}`;
 }
 
+export async function generateSignedUrl(
+  key: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  ensureSpacesConfig();
+
+  const client = getSpacesClient();
+
+  const command = new GetObjectCommand({
+    Bucket: env.SPACES_BUCKET,
+    Key: key,
+  });
+
+  return getSignedUrl(client, command, { expiresIn });
+}
+
+/**
+ * Upload booking invoice to Digital Ocean Spaces
+ * Uses a consistent key format for each booking (no timestamp)
+ * This allows us to regenerate signed URLs without re-uploading
+ */
 export async function uploadBookingInvoiceToSpaces(
   options: InvoiceGenerationOptions
 ): Promise<InvoiceUploadResult> {
@@ -307,7 +324,8 @@ export async function uploadBookingInvoiceToSpaces(
   const client = getSpacesClient();
 
   const prefix = env.SPACES_INVOICE_PREFIX.replace(/\/+$/, "");
-  const key = `${prefix}/booking-${options.bookingId}-${Date.now()}.pdf`;
+  // Use consistent key (no timestamp) so we can regenerate URLs
+  const key = `${prefix}/booking-${options.bookingId}.pdf`;
 
   const command = new PutObjectCommand({
     Bucket: env.SPACES_BUCKET,
@@ -319,10 +337,45 @@ export async function uploadBookingInvoiceToSpaces(
 
   await client.send(command);
 
+  // Generate a signed URL (valid for 1 hour by default)
+  const signedUrl = await generateSignedUrl(key, 3600);
+
   return {
     key,
     bucket: env.SPACES_BUCKET,
-    url: buildPublicUrl(key),
+    url: signedUrl,
   };
+}
+
+/**
+ * Get signed URL for an invoice
+ * If the PDF doesn't exist in Spaces, it will be uploaded first
+ * Returns a fresh signed URL (valid for 1 hour)
+ */
+export async function getInvoiceSignedUrl(
+  options: InvoiceGenerationOptions
+): Promise<{ url: string; filename: string }> {
+  ensureSpacesConfig();
+
+  const prefix = env.SPACES_INVOICE_PREFIX.replace(/\/+$/, "");
+  const key = `${prefix}/booking-${options.bookingId}.pdf`;
+  const filename = `invoice-booking-${options.bookingId}.pdf`;
+
+  try {
+    // Try to generate signed URL for existing file
+    const signedUrl = await generateSignedUrl(key, 3600);
+    return { url: signedUrl, filename };
+  } catch (error: any) {
+    // If file doesn't exist (404), upload it first
+    if (error?.name === "NoSuchKey" || error?.$metadata?.httpStatusCode === 404) {
+      console.log(`Invoice not found in Spaces, uploading for booking ${options.bookingId}`);
+      const uploadResult = await uploadBookingInvoiceToSpaces(options);
+      return { url: uploadResult.url, filename };
+    }
+    // For other errors, try uploading anyway
+    console.log(`Error checking invoice, re-uploading for booking ${options.bookingId}`);
+    const uploadResult = await uploadBookingInvoiceToSpaces(options);
+    return { url: uploadResult.url, filename };
+  }
 }
 
