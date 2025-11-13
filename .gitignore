@@ -17,4 +17,13 @@ package-lock.json
 /backend/node_modules
 /backend/prisma/ERD.svg
 
+# Kubernetes secrets with real credentials
+k8s/secrets.yaml
+k8s/secrets-*.yaml
+
+DEPLOYMENT.md
+k8S_CLUSTER_SETUP.md
+AUTOSCALING_DEMO.md
+load-test-demo.sh
+
 
