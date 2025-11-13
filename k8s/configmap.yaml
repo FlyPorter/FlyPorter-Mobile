@@ -13,5 +13,5 @@ data:
   SPACES_BUCKET: "flyporterbucket"
   SPACES_CDN_BASE_URL: ""
   SPACES_INVOICE_PREFIX: "invoices"
-  GOOGLE_CALLBACK_URL: "https://your-domain.com"
+  GOOGLE_CALLBACK_URL: "http://209.38.12.130"
 
