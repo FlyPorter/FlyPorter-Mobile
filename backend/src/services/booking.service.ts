@@ -84,15 +84,16 @@ export async function createBooking(input: CreateBookingInput) {
 
     return prisma.$transaction(async (tx) => {
         // 1. Check if user has customer info (passenger info required)
-        const customerInfo = await tx.customerInfo.findUnique({
-            where: { user_id },
-        });
+        // NOTE: This check has been removed to allow bookings without customer info
+        // const customerInfo = await tx.customerInfo.findUnique({
+        //     where: { user_id },
+        // });
 
-        if (!customerInfo) {
-            throw new Error(
-                "Customer information required. Please complete your profile with name and passport details before booking."
-            );
-        }
+        // if (!customerInfo) {
+        //     throw new Error(
+        //         "Customer information required. Please complete your profile with name and passport details before booking."
+        //     );
+        // }
 
         // 2. Get flight details for price calculation
         const flight = await tx.flight.findUnique({

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
+import { profileAPI } from '../../services/api';
 
 export default function ProfileScreen() {
   const { user, logout, isAdmin } = useAuth();
@@ -19,11 +20,68 @@ export default function ProfileScreen() {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = () => {
-    // TODO: Call API to update profile
-    Alert.alert('Success', 'Profile updated successfully');
-    setEditing(false);
+  useEffect(() => {
+    // Load profile data when component mounts
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const response = await profileAPI.get();
+      const profileData = response.data?.data || response.data;
+      
+      if (profileData) {
+        setName(profileData.full_name || profileData.name || user?.name || '');
+        setEmail(profileData.email || user?.email || '');
+        setPhone(profileData.phone || profileData.phone_number || user?.phone || '');
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      // Use user data from context as fallback
+      setName(user?.name || '');
+      setEmail(user?.email || '');
+      setPhone(user?.phone || '');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      Alert.alert('Error', 'Name is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log('Updating profile with:', { full_name: name.trim(), phone: phone.trim() || undefined });
+      const response = await profileAPI.update({
+        full_name: name.trim(),
+        phone: phone.trim() || undefined,
+      });
+      console.log('Profile update response:', JSON.stringify(response.data, null, 2));
+      
+      const responseData = response.data;
+      // Check if response has success field
+      if (responseData?.success === false) {
+        throw new Error(responseData?.error || responseData?.message || 'Profile update failed');
+      }
+      
+      Alert.alert('Success', 'Profile updated successfully');
+      setEditing(false);
+      // Reload profile to get updated data
+      await loadProfile();
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to update profile';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -72,9 +130,10 @@ export default function ProfileScreen() {
                 setEditing(true);
               }
             }}
+            disabled={loading}
           >
             <Text style={styles.editButton}>
-              {editing ? 'Save' : 'Edit'}
+              {loading ? 'Saving...' : editing ? 'Save' : 'Edit'}
             </Text>
           </TouchableOpacity>
         </View>

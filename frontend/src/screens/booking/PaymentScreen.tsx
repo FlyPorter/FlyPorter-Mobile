@@ -56,18 +56,60 @@ export default function PaymentScreen({ route, navigation }: any) {
       return;
     }
 
+    // Validate expiry date format
+    if (!expiryDate || !expiryDate.match(/^\d{2}\/\d{2}$/)) {
+      Alert.alert('Invalid Expiry Date', 'Please enter expiry date in MM/YY format');
+      return;
+    }
+
+    // Validate CVV
+    if (!cvv || cvv.length < 3) {
+      Alert.alert('Invalid CVV', 'Please enter a valid 3-digit CVV');
+      return;
+    }
+
     setProcessing(true);
 
     try {
+      // Convert expiry date from MM/YY to YYYY-MM format
+      // expiryDate is in format "MM/YY" (e.g., "12/25")
+      let expiryFormatted = '';
+      if (expiryDate.includes('/')) {
+        const [month, year] = expiryDate.split('/');
+        if (month && year) {
+          // Convert YY to YYYY (assuming 20YY for years 00-99)
+          const fullYear = year.length === 2 ? `20${year}` : year;
+          expiryFormatted = `${fullYear}-${month.padStart(2, '0')}`;
+        }
+      } else {
+        expiryFormatted = expiryDate;
+      }
+
       // Validate payment first
       const paymentData = {
         cardNumber: cardNumber.replace(/\s/g, ''),
-        expiry: expiryDate,
+        expiry: expiryFormatted,
         ccv: cvv,
         bookingDate: new Date().toISOString(),
       };
 
-      await paymentAPI.validate(paymentData);
+      // Validate payment first
+      console.log('Payment data being sent:', paymentData);
+      const paymentResponse = await paymentAPI.validate(paymentData);
+      console.log('Payment validation response:', JSON.stringify(paymentResponse.data, null, 2));
+      
+      const responseData = paymentResponse.data;
+      // Check if response has success field
+      if (responseData?.success === false) {
+        throw new Error(responseData?.error || responseData?.message || 'Payment validation failed');
+      }
+      
+      const paymentResult = responseData?.data || responseData;
+      console.log('Payment result:', paymentResult);
+      
+      if (!paymentResult?.valid) {
+        throw new Error('Payment validation failed. Please check your card details.');
+      }
 
       // Create booking for each passenger/seat
       // For now, create booking for the first passenger/seat
@@ -83,12 +125,20 @@ export default function PaymentScreen({ route, navigation }: any) {
         throw new Error('Flight ID is missing');
       }
       
+      console.log('Creating booking with:', { flight_id: typeof flightId === 'string' ? parseInt(flightId) : flightId, seat_number: seatNumber });
       const bookingResponse = await bookingAPI.create({
         flight_id: typeof flightId === 'string' ? parseInt(flightId) : flightId,
         seat_number: seatNumber,
       });
+      console.log('Booking response:', JSON.stringify(bookingResponse.data, null, 2));
 
-      const booking = bookingResponse.data?.data || bookingResponse.data;
+      const bookingResponseData = bookingResponse.data;
+      // Check if response has success field
+      if (bookingResponseData?.success === false) {
+        throw new Error(bookingResponseData?.error || bookingResponseData?.message || 'Booking creation failed');
+      }
+      
+      const booking = bookingResponseData?.data || bookingResponseData;
       const bookingId = booking?.confirmation_code || booking?.booking_id || `FP${Date.now().toString().slice(-8)}`;
       
       setProcessing(false);
@@ -104,6 +154,7 @@ export default function PaymentScreen({ route, navigation }: any) {
     } catch (error: any) {
       setProcessing(false);
       console.error('Payment/Booking error:', error);
+      console.error('Error response:', error.response?.data);
       
       if (error.response?.status === 401) {
         Alert.alert(
@@ -117,10 +168,12 @@ export default function PaymentScreen({ route, navigation }: any) {
             }
           ]
         );
-      } else if (error.response?.data?.message) {
-        Alert.alert('Error', error.response.data.message);
       } else {
-        Alert.alert('Error', 'Failed to process payment. Please try again.');
+        const errorMessage = error.response?.data?.error || 
+                           error.response?.data?.message || 
+                           error.message || 
+                           'Failed to process payment. Please try again.';
+        Alert.alert('Error', errorMessage);
       }
     }
   };

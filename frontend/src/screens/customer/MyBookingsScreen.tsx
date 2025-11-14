@@ -10,6 +10,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import { bookingAPI } from '../../services/api';
@@ -32,6 +33,7 @@ interface Booking {
 }
 
 export default function MyBookingsScreen() {
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -231,7 +233,22 @@ export default function MyBookingsScreen() {
 
         {/* Actions */}
         <View style={styles.bookingActions}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => {
+              // Navigate to flight details with booking flight info
+              navigation.navigate('FlightDetails' as never, {
+                flight: {
+                  ...booking.flight,
+                  price: booking.totalAmount / booking.passengers,
+                },
+                passengers: booking.passengers,
+                isRoundTrip: false,
+                bookingId: booking.id,
+                bookingReference: booking.bookingReference,
+              } as never);
+            }}
+          >
             <Ionicons name="document-text" size={20} color={colors.primary} />
             <Text style={styles.actionButtonText}>View Details</Text>
           </TouchableOpacity>

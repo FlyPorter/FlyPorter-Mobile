@@ -51,9 +51,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       const response = await authAPI.login(email, password);
-      const { data } = response.data; // Backend returns { success, data, message }
+      console.log('Login response:', JSON.stringify(response.data, null, 2));
       
-      const { user: backendUser, token: authToken } = data;
+      // Backend returns { success, data, message } format
+      // axios response structure: response.data = { success, data, message }
+      const responseData = response.data;
+      
+      // Check if response has success field
+      if (responseData?.success === false) {
+        throw new Error(responseData?.error || responseData?.message || 'Login failed');
+      }
+      
+      // Extract data - could be responseData.data or responseData directly
+      const backendData = responseData?.data || responseData;
+      console.log('Backend data:', JSON.stringify(backendData, null, 2));
+      
+      const { user: backendUser, token: authToken } = backendData;
+      
+      if (!backendUser || !authToken) {
+        console.error('Missing user or token:', { backendUser, authToken });
+        throw new Error('Invalid response from server');
+      }
       
       const user: User = {
         id: backendUser.user_id.toString(),
@@ -69,7 +87,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(user);
     } catch (error: any) {
       console.error('Login error:', error);
-      const message = error.response?.data?.message || 'Invalid email or password';
+      console.error('Error response:', error.response?.data);
+      const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Invalid email or password';
       throw new Error(message);
     }
   };
@@ -77,9 +96,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (email: string, password: string, name: string, phone?: string) => {
     try {
       const response = await authAPI.register(email, password);
-      const { data } = response.data; // Backend returns { success, data, message }
+      console.log('Register response:', JSON.stringify(response.data, null, 2));
       
-      const { user: backendUser, token: authToken } = data;
+      // Backend returns { success, data, message } format
+      const responseData = response.data;
+      
+      // Check if response has success field
+      if (responseData?.success === false) {
+        throw new Error(responseData?.error || responseData?.message || 'Registration failed');
+      }
+      
+      // Extract data - could be responseData.data or responseData directly
+      const backendData = responseData?.data || responseData;
+      console.log('Backend data:', JSON.stringify(backendData, null, 2));
+      
+      const { user: backendUser, token: authToken } = backendData;
+      
+      if (!backendUser || !authToken) {
+        console.error('Missing user or token:', { backendUser, authToken });
+        throw new Error('Invalid response from server');
+      }
       
       const user: User = {
         id: backendUser.user_id.toString(),
@@ -100,16 +136,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           await profileAPI.update({
             full_name: name,
-            phone_number: phone,
+            phone: phone,
           });
         } catch (profileError) {
           console.error('Profile update error:', profileError);
+          console.error('Profile update error response:', profileError.response?.data);
           // Continue anyway, user can update later
         }
       }
     } catch (error: any) {
       console.error('Registration error:', error);
-      const message = error.response?.data?.message || 'Registration failed';
+      console.error('Error response:', error.response?.data);
+      const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Registration failed';
       throw new Error(message);
     }
   };

@@ -112,9 +112,11 @@ export const profileAPI = {
   // PATCH /profile - Update profile (requires auth)
   update: (data: {
     full_name?: string;
-    phone_number?: string;
+    phone?: string;
     passport_number?: string;
     date_of_birth?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
   }) => api.patch('/profile', data),
 };
 

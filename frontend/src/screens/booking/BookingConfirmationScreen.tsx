@@ -15,6 +15,28 @@ import * as Sharing from 'expo-sharing';
 
 export default function BookingConfirmationScreen({ route, navigation }: any) {
   const { bookingId, flight, passengers, selectedSeats, passengerData, totalAmount } = route.params;
+  
+  // Ensure flight object has all required fields with fallbacks
+  const safeFlight = {
+    ...flight,
+    origin: {
+      code: flight?.origin?.code || '',
+      city: flight?.origin?.city || flight?.origin?.name || '',
+      name: flight?.origin?.name || flight?.origin?.city || '',
+    },
+    destination: {
+      code: flight?.destination?.code || '',
+      city: flight?.destination?.city || flight?.destination?.name || '',
+      name: flight?.destination?.name || flight?.destination?.city || '',
+    },
+    departureTime: flight?.departureTime || '',
+    arrivalTime: flight?.arrivalTime || '',
+    duration: flight?.duration || '',
+    flightNumber: flight?.flightNumber || '',
+    airline: {
+      name: flight?.airline?.name || 'FlyPorter',
+    },
+  };
 
   const handleDownloadPDF = async () => {
     try {
@@ -86,7 +108,7 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
               </div>
               <div class="info-row">
                 <span class="label">Flight Number:</span>
-                <span>${flight.flightNumber}</span>
+                <span>${safeFlight.flightNumber}</span>
               </div>
               <div class="info-row">
                 <span class="label">Date:</span>
@@ -98,20 +120,24 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
               <div class="section-title">Flight Details</div>
               <div class="info-row">
                 <span class="label">From:</span>
-                <span>${flight.origin.name} (${flight.origin.code})</span>
+                <span>${safeFlight.origin.city || safeFlight.origin.name || ''} (${safeFlight.origin.code})</span>
               </div>
               <div class="info-row">
                 <span class="label">To:</span>
-                <span>${flight.destination.name} (${flight.destination.code})</span>
+                <span>${safeFlight.destination.city || safeFlight.destination.name || ''} (${safeFlight.destination.code})</span>
               </div>
               <div class="info-row">
                 <span class="label">Departure:</span>
-                <span>${flight.departureTime}</span>
+                <span>${safeFlight.departureTime}</span>
               </div>
               <div class="info-row">
                 <span class="label">Arrival:</span>
-                <span>${flight.arrivalTime}</span>
+                <span>${safeFlight.arrivalTime}</span>
               </div>
+              ${safeFlight.duration ? `<div class="info-row">
+                <span class="label">Duration:</span>
+                <span>${safeFlight.duration}</span>
+              </div>` : ''}
             </div>
 
             <div class="section">
@@ -193,8 +219,8 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
           <View style={styles.flightCard}>
             <View style={styles.flightHeader}>
               <View>
-                <Text style={styles.airline}>{flight.airline.name}</Text>
-                <Text style={styles.flightNumber}>Flight {flight.flightNumber}</Text>
+                <Text style={styles.airline}>{safeFlight.airline.name}</Text>
+                <Text style={styles.flightNumber}>Flight {safeFlight.flightNumber}</Text>
               </View>
               <View style={styles.dateBadge}>
                 <Ionicons name="calendar" size={16} color={colors.primary} />
@@ -204,20 +230,20 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
 
             <View style={styles.routeInfo}>
               <View style={styles.airport}>
-                <Text style={styles.airportCode}>{flight.origin.code}</Text>
-                <Text style={styles.airportTime}>{flight.departureTime}</Text>
-                <Text style={styles.airportName}>{flight.origin.city}</Text>
+                <Text style={styles.airportCode}>{safeFlight.origin.code}</Text>
+                <Text style={styles.airportTime}>{safeFlight.departureTime}</Text>
+                <Text style={styles.airportName}>{safeFlight.origin.city}</Text>
               </View>
 
               <View style={styles.routeMiddle}>
                 <Ionicons name="airplane" size={24} color={colors.primary} />
-                <Text style={styles.duration}>{flight.duration}</Text>
+                <Text style={styles.duration}>{safeFlight.duration}</Text>
               </View>
 
               <View style={styles.airport}>
-                <Text style={styles.airportCode}>{flight.destination.code}</Text>
-                <Text style={styles.airportTime}>{flight.arrivalTime}</Text>
-                <Text style={styles.airportName}>{flight.destination.city}</Text>
+                <Text style={styles.airportCode}>{safeFlight.destination.code}</Text>
+                <Text style={styles.airportTime}>{safeFlight.arrivalTime}</Text>
+                <Text style={styles.airportName}>{safeFlight.destination.city}</Text>
               </View>
             </View>
           </View>
