@@ -3,6 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../context/AuthContext';
 import CustomerTabNavigator from './CustomerTabNavigator';
 import AdminTabNavigator from './AdminTabNavigator';
+import FlightResultsScreen from '../screens/public/FlightResultsScreen';
 import FlightDetailsScreen from '../screens/public/FlightDetailsScreen';
 import SeatSelectionScreen from '../screens/booking/SeatSelectionScreen';
 import PassengerInfoScreen from '../screens/booking/PassengerInfoScreen';
@@ -19,6 +20,14 @@ export default function MainNavigator() {
       <Stack.Screen 
         name="Tabs" 
         component={isAdmin ? AdminTabNavigator : CustomerTabNavigator}
+      />
+      <Stack.Screen 
+        name="FlightResults" 
+        component={FlightResultsScreen}
+        options={{ 
+          headerShown: true,
+          title: 'Available Flights',
+        }}
       />
       <Stack.Screen 
         name="FlightDetails" 

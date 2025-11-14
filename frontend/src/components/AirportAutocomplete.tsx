@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -231,15 +230,13 @@ export default function AirportAutocomplete({
 
       {showSuggestions && filteredAirports.length > 0 && (
         <View style={styles.suggestionsContainer}>
-          <FlatList
-            data={filteredAirports}
-            renderItem={renderSuggestion}
-            keyExtractor={(item) => item.airport_code}
-            style={styles.suggestionsList}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
-          />
+          <View style={styles.suggestionsList}>
+            {filteredAirports.map((item) => (
+              <View key={item.airport_code}>
+                {renderSuggestion({ item })}
+              </View>
+            ))}
+          </View>
         </View>
       )}
     </View>

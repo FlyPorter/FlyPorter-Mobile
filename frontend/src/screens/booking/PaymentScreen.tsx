@@ -13,9 +13,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
+import { useAuth } from '../../context/AuthContext';
+import { bookingAPI, paymentAPI } from '../../services/api';
 
 export default function PaymentScreen({ route, navigation }: any) {
   const { flight, passengers, selectedSeats, seatCharges, passengerData } = route.params;
+  const { isAuthenticated } = useAuth();
   
   const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
@@ -26,6 +29,22 @@ export default function PaymentScreen({ route, navigation }: any) {
   const totalAmount = (flight.price * passengers + seatCharges) * 1.15;
 
   const handlePayment = async () => {
+    // Check authentication first
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in to complete your booking',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Sign In', 
+            onPress: () => navigation.navigate('Login')
+          }
+        ]
+      );
+      return;
+    }
+
     // Validate payment info
     if (!cardNumber || !cardName || !expiryDate || !cvv) {
       Alert.alert('Incomplete Information', 'Please fill in all payment fields');
@@ -39,12 +58,40 @@ export default function PaymentScreen({ route, navigation }: any) {
 
     setProcessing(true);
 
-    // Simulate payment processing
-    setTimeout(() => {
-      setProcessing(false);
+    try {
+      // Validate payment first
+      const paymentData = {
+        cardNumber: cardNumber.replace(/\s/g, ''),
+        expiry: expiryDate,
+        ccv: cvv,
+        bookingDate: new Date().toISOString(),
+      };
+
+      await paymentAPI.validate(paymentData);
+
+      // Create booking for each passenger/seat
+      // For now, create booking for the first passenger/seat
+      // In a real app, you'd create multiple bookings for multiple passengers
+      const firstSeat = selectedSeats[0];
+      const seatNumber = `${firstSeat.row}${firstSeat.column}`;
       
-      // Mock booking ID
-      const bookingId = 'FP' + Date.now().toString().slice(-8);
+      // Get flight_id from flight object
+      // flight.id is String(flight.flight_id) from FlightResultsScreen
+      const flightId = flight.flight_id || (flight.id ? parseInt(String(flight.id)) : null);
+      
+      if (!flightId) {
+        throw new Error('Flight ID is missing');
+      }
+      
+      const bookingResponse = await bookingAPI.create({
+        flight_id: typeof flightId === 'string' ? parseInt(flightId) : flightId,
+        seat_number: seatNumber,
+      });
+
+      const booking = bookingResponse.data?.data || bookingResponse.data;
+      const bookingId = booking?.confirmation_code || booking?.booking_id || `FP${Date.now().toString().slice(-8)}`;
+      
+      setProcessing(false);
       
       navigation.replace('BookingConfirmation', {
         bookingId,
@@ -54,7 +101,28 @@ export default function PaymentScreen({ route, navigation }: any) {
         passengerData,
         totalAmount,
       });
-    }, 2000);
+    } catch (error: any) {
+      setProcessing(false);
+      console.error('Payment/Booking error:', error);
+      
+      if (error.response?.status === 401) {
+        Alert.alert(
+          'Authentication Required',
+          'Please sign in to complete your booking',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Sign In', 
+              onPress: () => navigation.navigate('Login')
+            }
+          ]
+        );
+      } else if (error.response?.data?.message) {
+        Alert.alert('Error', error.response.data.message);
+      } else {
+        Alert.alert('Error', 'Failed to process payment. Please try again.');
+      }
+    }
   };
 
   const formatCardNumber = (text: string) => {

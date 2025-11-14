@@ -56,52 +56,77 @@ export default function FlightResultsScreen({ route, navigation }: any) {
 
   const loadOutboundFlights = async () => {
     try {
-      // Mock data for demonstration
-      // TODO: Replace with actual API call
-      setTimeout(() => {
-        const mockFlights: Flight[] = [
-          {
-            id: '1',
-            flightNumber: 'FP101',
-            airline: { name: 'FlyPorter', code: 'FP' },
-            departureTime: '08:00',
-            arrivalTime: '11:30',
-            duration: '3h 30m',
-            price: 299,
-            availableSeats: 45,
-            origin: { code: 'YYZ', name: 'Toronto Pearson', city: 'Toronto' },
-            destination: { code: 'YVR', name: 'Vancouver Intl', city: 'Vancouver' },
-          },
-          {
-            id: '2',
-            flightNumber: 'FP203',
-            airline: { name: 'FlyPorter', code: 'FP' },
-            departureTime: '12:30',
-            arrivalTime: '16:00',
-            duration: '3h 30m',
-            price: 349,
-            availableSeats: 23,
-            origin: { code: 'YYZ', name: 'Toronto Pearson', city: 'Toronto' },
-            destination: { code: 'YVR', name: 'Vancouver Intl', city: 'Vancouver' },
-          },
-          {
-            id: '3',
-            flightNumber: 'FP405',
-            airline: { name: 'FlyPorter', code: 'FP' },
-            departureTime: '18:00',
-            arrivalTime: '21:30',
-            duration: '3h 30m',
-            price: 279,
-            availableSeats: 67,
-            origin: { code: 'YYZ', name: 'Toronto Pearson', city: 'Toronto' },
-            destination: { code: 'YVR', name: 'Vancouver Intl', city: 'Vancouver' },
-          },
-        ];
-        setOutboundFlights(mockFlights);
+      setLoading(true);
+      
+      // Extract airport codes from origin and destination
+      const extractAirportCode = (input: string) => {
+        const match = input.match(/\((\w{3})\)$/);
+        return match ? match[1] : input;
+      };
+      
+      const originCode = extractAirportCode(origin);
+      const destCode = extractAirportCode(destination);
+      
+      if (!originCode || !destCode) {
+        Alert.alert('Invalid Selection', 'Please select valid origin and destination airports');
         setLoading(false);
-      }, 1000);
-    } catch (error) {
+        return;
+      }
+
+      // Call API to get all flights
+      const response = await flightAPI.search();
+      
+      if (response.data?.success && response.data?.data) {
+        // Filter flights by origin and destination
+        const filteredFlights = response.data.data
+          .filter((flight: any) => {
+            const flightOrigin = (flight.route?.origin_airport_code || flight.route?.origin_airport?.airport_code)?.toUpperCase();
+            const flightDest = (flight.route?.destination_airport_code || flight.route?.destination_airport?.airport_code)?.toUpperCase();
+            return flightOrigin === originCode.toUpperCase() && 
+                   flightDest === destCode.toUpperCase();
+          })
+          .map((flight: any) => {
+            const departureTime = new Date(flight.departure_time);
+            const arrivalTime = new Date(flight.arrival_time);
+            const durationMs = arrivalTime.getTime() - departureTime.getTime();
+            const hours = Math.floor(durationMs / (1000 * 60 * 60));
+            const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+            
+            return {
+              id: String(flight.flight_id),
+              flight_id: flight.flight_id, // Keep original flight_id for API calls
+              flightNumber: `${flight.route?.airline?.airline_code || 'FP'}${flight.flight_id}`,
+              airline: { 
+                name: flight.route?.airline?.airline_name || 'FlyPorter', 
+                code: flight.route?.airline?.airline_code || 'FP' 
+              },
+              departureTime: departureTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              arrivalTime: arrivalTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              duration: `${hours}h ${minutes}m`,
+              price: parseFloat(flight.base_price || '0'),
+              availableSeats: flight.available_seats || flight.seats?.filter((s: any) => s.is_available).length || 0,
+              origin: { 
+                code: flight.route?.origin_airport_code || '', 
+                name: flight.route?.origin_airport?.airport_name || '',
+                city: flight.route?.origin_airport?.city_name || '' 
+              },
+              destination: { 
+                code: flight.route?.destination_airport_code || '', 
+                name: flight.route?.destination_airport?.airport_name || '',
+                city: flight.route?.destination_airport?.city_name || '' 
+              },
+            };
+          });
+        
+        setOutboundFlights(filteredFlights);
+      } else {
+        setOutboundFlights([]);
+      }
+      setLoading(false);
+    } catch (error: any) {
       console.error('Error loading flights:', error);
+      Alert.alert('Error', 'Failed to load flights. Please try again.');
+      setOutboundFlights([]);
       setLoading(false);
     }
   };
@@ -109,61 +134,80 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   const loadReturnFlights = async () => {
     try {
       setLoadingReturn(true);
-      // Mock data for return flights
-      // TODO: Replace with actual API call
-      setTimeout(() => {
-        const mockReturnFlights: Flight[] = [
-          {
-            id: 'r1',
-            flightNumber: 'FP102',
-            airline: { name: 'FlyPorter', code: 'FP' },
-            departureTime: '09:00',
-            arrivalTime: '12:30',
-            duration: '3h 30m',
-            price: 299,
-            availableSeats: 52,
-            origin: { code: 'YVR', name: 'Vancouver Intl', city: 'Vancouver' },
-            destination: { code: 'YYZ', name: 'Toronto Pearson', city: 'Toronto' },
-          },
-          {
-            id: 'r2',
-            flightNumber: 'FP204',
-            airline: { name: 'FlyPorter', code: 'FP' },
-            departureTime: '14:00',
-            arrivalTime: '17:30',
-            duration: '3h 30m',
-            price: 349,
-            availableSeats: 31,
-            origin: { code: 'YVR', name: 'Vancouver Intl', city: 'Vancouver' },
-            destination: { code: 'YYZ', name: 'Toronto Pearson', city: 'Toronto' },
-          },
-          {
-            id: 'r3',
-            flightNumber: 'FP406',
-            airline: { name: 'FlyPorter', code: 'FP' },
-            departureTime: '19:00',
-            arrivalTime: '22:30',
-            duration: '3h 30m',
-            price: 279,
-            availableSeats: 58,
-            origin: { code: 'YVR', name: 'Vancouver Intl', city: 'Vancouver' },
-            destination: { code: 'YYZ', name: 'Toronto Pearson', city: 'Toronto' },
-          },
-        ];
-        setReturnFlights(mockReturnFlights);
+      
+      // Extract airport codes - reverse for return trip
+      const extractAirportCode = (input: string) => {
+        const match = input.match(/\((\w{3})\)$/);
+        return match ? match[1] : input;
+      };
+      
+      const originCode = extractAirportCode(destination); // Reverse for return
+      const destCode = extractAirportCode(origin); // Reverse for return
+      
+      if (!originCode || !destCode) {
         setLoadingReturn(false);
-      }, 1000);
-    } catch (error) {
+        return;
+      }
+
+      // Call API to get all flights
+      const response = await flightAPI.search();
+      
+      if (response.data?.success && response.data?.data) {
+        // Filter flights by origin and destination (reversed for return)
+        const filteredFlights = response.data.data
+          .filter((flight: any) => {
+            const flightOrigin = (flight.route?.origin_airport_code || flight.route?.origin_airport?.airport_code)?.toUpperCase();
+            const flightDest = (flight.route?.destination_airport_code || flight.route?.destination_airport?.airport_code)?.toUpperCase();
+            return flightOrigin === originCode.toUpperCase() && 
+                   flightDest === destCode.toUpperCase();
+          })
+          .map((flight: any) => {
+            const departureTime = new Date(flight.departure_time);
+            const arrivalTime = new Date(flight.arrival_time);
+            const durationMs = arrivalTime.getTime() - departureTime.getTime();
+            const hours = Math.floor(durationMs / (1000 * 60 * 60));
+            const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+            
+            return {
+              id: String(flight.flight_id),
+              flight_id: flight.flight_id, // Keep original flight_id for API calls
+              flightNumber: `${flight.route?.airline?.airline_code || 'FP'}${flight.flight_id}`,
+              airline: { 
+                name: flight.route?.airline?.airline_name || 'FlyPorter', 
+                code: flight.route?.airline?.airline_code || 'FP' 
+              },
+              departureTime: departureTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              arrivalTime: arrivalTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              duration: `${hours}h ${minutes}m`,
+              price: parseFloat(flight.base_price || '0'),
+              availableSeats: flight.available_seats || flight.seats?.filter((s: any) => s.is_available).length || 0,
+              origin: { 
+                code: flight.route?.origin_airport_code || '', 
+                name: flight.route?.origin_airport?.airport_name || '',
+                city: flight.route?.origin_airport?.city_name || '' 
+              },
+              destination: { 
+                code: flight.route?.destination_airport_code || '', 
+                name: flight.route?.destination_airport?.airport_name || '',
+                city: flight.route?.destination_airport?.city_name || '' 
+              },
+            };
+          });
+        
+        setReturnFlights(filteredFlights);
+      } else {
+        setReturnFlights([]);
+      }
+      setLoadingReturn(false);
+    } catch (error: any) {
       console.error('Error loading return flights:', error);
+      setReturnFlights([]);
       setLoadingReturn(false);
     }
   };
 
   const handleSelectOutbound = (flight: Flight) => {
-    if (!isAuthenticated) {
-      navigation.navigate('Login');
-      return;
-    }
+    // Allow selection without authentication - user can view flights
     setSelectedOutbound(flight);
     setSelectedReturn(null); // Reset return selection when outbound changes
     if (returnDate) {
@@ -172,10 +216,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   };
 
   const handleSelectReturn = (flight: Flight) => {
-    if (!isAuthenticated) {
-      navigation.navigate('Login');
-      return;
-    }
+    // Allow selection without authentication - user can view flights
     setSelectedReturn(flight);
   };
 

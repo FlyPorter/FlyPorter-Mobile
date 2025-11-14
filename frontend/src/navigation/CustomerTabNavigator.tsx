@@ -22,7 +22,7 @@ function SearchStackNavigator() {
         options={{ title: 'Search Flights' }}
       />
       <SearchStack.Screen 
-        name="Results" 
+        name="FlightResults" 
         component={FlightResultsScreen}
         options={{ title: 'Available Flights' }}
       />

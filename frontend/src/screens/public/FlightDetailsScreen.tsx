@@ -25,11 +25,7 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
   const mainFlight = isRoundTrip ? outboundFlight : flight;
 
   const handleBookFlight = () => {
-    if (!isAuthenticated) {
-      navigation.navigate('Login');
-      return;
-    }
-    
+    // Allow unauthenticated users to proceed - they'll be prompted to login at payment
     if (isRoundTrip) {
       // For round trip, pass both flights
       navigation.navigate('SeatSelection', { 
@@ -362,7 +358,7 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
           onPress={handleBookFlight}
         >
           <Text style={styles.bookButtonText}>
-            {isAuthenticated ? 'Select Seats' : 'Sign in to Book'}
+            Select Seats
           </Text>
           <Ionicons name="arrow-forward" size={20} color="#fff" />
         </TouchableOpacity>

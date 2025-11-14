@@ -39,53 +39,96 @@ export default function MyBookingsScreen() {
 
   useEffect(() => {
     loadBookings();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const loadBookings = async () => {
     try {
-      // Mock data for demonstration
-      // TODO: Replace with actual API call
-      setTimeout(() => {
-        const mockBookings: Booking[] = [
-          {
-            id: '1',
-            bookingReference: 'FP12345678',
-            status: 'confirmed',
+      setLoading(true);
+      const filter = activeTab === 'upcoming' ? 'upcoming' : activeTab === 'past' ? 'past' : 'all';
+      console.log('Loading bookings with filter:', filter);
+      
+      const response = await bookingAPI.getMyBookings(filter);
+      console.log('Bookings API response:', JSON.stringify(response.data, null, 2));
+      
+      // Transform API response to match Booking interface
+      // Handle different response structures
+      let bookingsData: any[] = [];
+      
+      if (response.data?.success && response.data?.data) {
+        bookingsData = Array.isArray(response.data.data) ? response.data.data : [];
+      } else if (Array.isArray(response.data)) {
+        bookingsData = response.data;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        bookingsData = response.data.data;
+      }
+      
+      console.log('Extracted bookings data:', bookingsData.length, 'bookings');
+      
+      const transformedBookings: Booking[] = bookingsData.map((booking: any) => {
+        try {
+          const departureTime = booking.flight?.departure_time ? new Date(booking.flight.departure_time) : null;
+          const arrivalTime = booking.flight?.arrival_time ? new Date(booking.flight.arrival_time) : null;
+          const isPast = departureTime ? departureTime < new Date() : false;
+          
+          // Get airline info - check multiple possible paths
+          const airlineCode = booking.flight?.route?.airline?.airline_code || 
+                            booking.flight?.airline?.airline_code || 
+                            booking.flight?.airline_code || 
+                            'FP';
+          const airlineName = booking.flight?.route?.airline?.airline_name || 
+                            booking.flight?.airline?.airline_name || 
+                            'FlyPorter';
+          
+          // Get airport info
+          const originCode = booking.flight?.route?.origin_airport?.airport_code || '';
+          const originCity = booking.flight?.route?.origin_airport?.city_name || '';
+          const destCode = booking.flight?.route?.destination_airport?.airport_code || '';
+          const destCity = booking.flight?.route?.destination_airport?.city_name || '';
+          
+          return {
+            id: String(booking.booking_id || booking.id || ''),
+            bookingReference: booking.confirmation_code || `FP${String(booking.booking_id || booking.id || '').padStart(8, '0')}`,
+            status: booking.status === 'cancelled' ? 'cancelled' : 
+                   isPast ? 'completed' : 'confirmed',
             flight: {
-              flightNumber: 'FP101',
-              airline: { name: 'FlyPorter' },
-              departureTime: '08:00',
-              arrivalTime: '11:30',
-              origin: { code: 'YYZ', city: 'Toronto' },
-              destination: { code: 'YVR', city: 'Vancouver' },
+              flightNumber: airlineCode + String(booking.flight?.flight_id || booking.flight_id || ''),
+              airline: { name: airlineName },
+              departureTime: departureTime ? departureTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+              arrivalTime: arrivalTime ? arrivalTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+              origin: { 
+                code: originCode, 
+                city: originCity
+              },
+              destination: { 
+                code: destCode, 
+                city: destCity
+              },
             },
-            passengers: 2,
-            totalAmount: 689.40,
-            bookingDate: '2024-03-01',
-          },
-          {
-            id: '2',
-            bookingReference: 'FP87654321',
-            status: 'completed',
-            flight: {
-              flightNumber: 'FP202',
-              airline: { name: 'FlyPorter' },
-              departureTime: '14:00',
-              arrivalTime: '17:30',
-              origin: { code: 'YUL', city: 'Montreal' },
-              destination: { code: 'YYZ', city: 'Toronto' },
-            },
-            passengers: 1,
-            totalAmount: 344.70,
-            bookingDate: '2024-02-15',
-          },
-        ];
-        setBookings(mockBookings);
-        setLoading(false);
-        setRefreshing(false);
-      }, 1000);
-    } catch (error) {
+            passengers: 1, // API doesn't return passenger count, default to 1
+            totalAmount: parseFloat(booking.total_price || booking.totalAmount || '0'),
+            bookingDate: booking.booking_time ? new Date(booking.booking_time).toISOString().split('T')[0] : 
+                        booking.createdAt ? new Date(booking.createdAt).toISOString().split('T')[0] : 
+                        new Date().toISOString().split('T')[0],
+          };
+        } catch (transformError) {
+          console.error('Error transforming booking:', booking, transformError);
+          return null;
+        }
+      }).filter((booking): booking is Booking => booking !== null);
+      
+      console.log('Transformed bookings:', transformedBookings.length);
+      setBookings(transformedBookings);
+      setLoading(false);
+      setRefreshing(false);
+    } catch (error: any) {
       console.error('Error loading bookings:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      Alert.alert(
+        'Error', 
+        `Failed to load bookings: ${error.response?.data?.message || error.message || 'Unknown error'}`
+      );
+      setBookings([]);
       setLoading(false);
       setRefreshing(false);
     }
@@ -107,11 +150,13 @@ export default function MyBookingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // TODO: Call API to cancel booking
+              await bookingAPI.cancel(booking.id);
               Alert.alert('Success', 'Booking cancelled successfully');
               loadBookings();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to cancel booking');
+            } catch (error: any) {
+              console.error('Error cancelling booking:', error);
+              const errorMessage = error.response?.data?.message || error.message || 'Failed to cancel booking';
+              Alert.alert('Error', errorMessage);
             }
           },
         },

@@ -30,7 +30,7 @@ export default function FlightSearchScreen({ navigation }: any) {
       return;
     }
 
-    navigation.navigate('Results', {
+    navigation.navigate('FlightResults', {
       origin,
       destination,
       departDate,

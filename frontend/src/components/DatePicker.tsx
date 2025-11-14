@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Modal,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +35,28 @@ export default function DatePicker({
 }: DatePickerProps) {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(value);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const yearScrollViewRef = useRef<ScrollView>(null);
+
+  // Reset pickers when calendar modal opens
+  useEffect(() => {
+    if (showCalendar) {
+      setShowYearPicker(false);
+      setShowMonthPicker(false);
+    }
+  }, [showCalendar]);
+
+  // Update current year/month when selectedDate changes
+  useEffect(() => {
+    if (selectedDate) {
+      const date = new Date(selectedDate + 'T00:00:00');
+      setCurrentYear(date.getFullYear());
+      setCurrentMonth(date.getMonth() + 1);
+    }
+  }, [selectedDate]);
 
   const handleDateSelect = (day: any) => {
     const dateString = day.dateString; // Format: YYYY-MM-DD
@@ -41,6 +64,49 @@ export default function DatePicker({
     onChange(dateString);
     setShowCalendar(false);
   };
+
+  const handleYearMonthChange = (year: number, month: number) => {
+    setCurrentYear(year);
+    setCurrentMonth(month);
+    setShowYearPicker(false);
+    setShowMonthPicker(false);
+  };
+
+  // Scroll to current year when year picker opens
+  useEffect(() => {
+    if (showYearPicker && yearScrollViewRef.current) {
+      setTimeout(() => {
+        const currentYearIndex = generateYears.findIndex(y => y === currentYear);
+        if (currentYearIndex >= 0 && yearScrollViewRef.current) {
+          yearScrollViewRef.current.scrollTo({
+            y: currentYearIndex * 50, // Approximate item height
+            animated: true,
+          });
+        }
+      }, 100);
+    }
+  }, [showYearPicker, currentYear, generateYears]);
+
+  const getCurrentCalendarDate = () => {
+    const year = currentYear;
+    const month = String(currentMonth).padStart(2, '0');
+    return `${year}-${month}-01`;
+  };
+
+  // Generate years list (current year ± 10 years)
+  const generateYears = React.useMemo(() => {
+    const currentYearNum = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYearNum - 10; i <= currentYearNum + 10; i++) {
+      years.push(i);
+    }
+    return years;
+  }, []);
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   const formatDisplayDate = (dateString: string) => {
     if (!dateString) return '';
@@ -119,26 +185,118 @@ export default function DatePicker({
               </TouchableOpacity>
             </View>
 
-            <Calendar
-              current={selectedDate || new Date().toISOString().split('T')[0]}
-              onDayPress={handleDateSelect}
-              markedDates={markedDates}
-              minDate={minimumDate}
-              maxDate={maximumDate}
-              theme={{
-                todayTextColor: colors.primary,
-                arrowColor: colors.primary,
-                selectedDayBackgroundColor: colors.primary,
-                selectedDayTextColor: '#fff',
-                textDayFontWeight: '500',
-                textMonthFontWeight: '600',
-                textDayHeaderFontWeight: '600',
-                textDayFontSize: 16,
-                textMonthFontSize: 18,
-                textDayHeaderFontSize: 14,
-              }}
-              style={styles.calendar}
-            />
+            {/* Year Picker */}
+            {showYearPicker && (
+              <View style={styles.pickerContainer}>
+                <ScrollView
+                  ref={yearScrollViewRef}
+                  style={styles.pickerScrollView}
+                  contentContainerStyle={styles.pickerScrollContent}
+                >
+                  {generateYears.map((year) => (
+                    <TouchableOpacity
+                      key={year}
+                      style={[
+                        styles.pickerItem,
+                        year === currentYear && styles.pickerItemSelected,
+                      ]}
+                      onPress={() => handleYearMonthChange(year, currentMonth)}
+                    >
+                      <Text
+                        style={[
+                          styles.pickerItemText,
+                          year === currentYear && styles.pickerItemTextSelected,
+                        ]}
+                      >
+                        {year}
+                      </Text>
+                      {year === currentYear && (
+                        <Ionicons name="checkmark" size={20} color={colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Month Picker */}
+            {showMonthPicker && (
+              <View style={styles.pickerContainer}>
+                <ScrollView style={styles.pickerScrollView}>
+                  {months.map((month, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.pickerItem,
+                        index + 1 === currentMonth && styles.pickerItemSelected,
+                      ]}
+                      onPress={() => handleYearMonthChange(currentYear, index + 1)}
+                    >
+                      <Text
+                        style={[
+                          styles.pickerItemText,
+                          index + 1 === currentMonth && styles.pickerItemTextSelected,
+                        ]}
+                      >
+                        {month}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {!showYearPicker && !showMonthPicker && (
+              <Calendar
+                current={getCurrentCalendarDate()}
+                onDayPress={handleDateSelect}
+                markedDates={markedDates}
+                minDate={minimumDate}
+                maxDate={maximumDate}
+                enableSwipeMonths={true}
+                hideExtraDays={true}
+                firstDay={1}
+                showWeekNumbers={false}
+                onMonthChange={(month: any) => {
+                  const date = new Date(month.dateString);
+                  setCurrentYear(date.getFullYear());
+                  setCurrentMonth(date.getMonth() + 1);
+                }}
+                renderHeader={(date: any) => {
+                  const year = date.getFullYear();
+                  const month = date.getMonth();
+                  return (
+                    <View style={styles.calendarHeader}>
+                      <TouchableOpacity
+                        style={styles.calendarHeaderButton}
+                        onPress={() => {
+                          setShowMonthPicker(false);
+                          setShowYearPicker(true);
+                        }}
+                      >
+                        <Text style={styles.calendarHeaderText}>
+                          {months[month]} {year}
+                        </Text>
+                        <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }}
+                theme={{
+                  todayTextColor: colors.primary,
+                  arrowColor: colors.primary,
+                  selectedDayBackgroundColor: colors.primary,
+                  selectedDayTextColor: '#fff',
+                  textDayFontWeight: '500',
+                  textMonthFontWeight: '600',
+                  textDayHeaderFontWeight: '600',
+                  textDayFontSize: 16,
+                  textMonthFontSize: 18,
+                  textDayHeaderFontSize: 14,
+                }}
+                style={styles.calendar}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -217,6 +375,76 @@ const styles = StyleSheet.create({
   calendar: {
     borderRadius: 10,
     padding: spacing.md,
+  },
+  yearMonthSelector: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  yearMonthButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    gap: spacing.xs,
+  },
+  yearMonthText: {
+    ...typography.body1,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  pickerContainer: {
+    maxHeight: 200,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pickerScrollView: {
+    maxHeight: 200,
+  },
+  pickerScrollContent: {
+    paddingBottom: spacing.md,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  calendarHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+    gap: spacing.xs,
+  },
+  calendarHeaderText: {
+    ...typography.h4,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  pickerItem: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pickerItemSelected: {
+    backgroundColor: colors.primary + '20',
+  },
+  pickerItemText: {
+    ...typography.body1,
+    color: colors.text,
+  },
+  pickerItemTextSelected: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
 
