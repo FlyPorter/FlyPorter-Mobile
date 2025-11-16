@@ -16,7 +16,17 @@ const SearchStack = createStackNavigator();
 
 function SearchStackNavigator() {
   return (
-    <SearchStack.Navigator>
+    <SearchStack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#EF4444', // Red background
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: '600',
+        },
+      }}
+    >
       <SearchStack.Screen 
         name="Search" 
         component={FlightSearchScreen}
@@ -58,10 +68,15 @@ export default function CustomerTabNavigator() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarActiveTintColor: '#EF4444', // Red color for active tab
+        tabBarInactiveTintColor: '#9CA3AF', // Gray color for inactive tabs
+        tabBarStyle: {
+          backgroundColor: '#000000', // Black background
+          borderTopColor: '#374151', // Dark gray border
+          borderTopWidth: 1,
+        },
         headerStyle: {
-          backgroundColor: colors.primary,
+          backgroundColor: '#1F2937', // Dark gray/black header
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
@@ -83,6 +98,13 @@ export default function CustomerTabNavigator() {
         options={{ 
           tabBarLabel: 'My Trips',
           title: 'My Trips',
+          headerStyle: {
+            backgroundColor: '#EF4444', // Red background
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: '600',
+          },
         }}
       />
       <Tab.Screen 
@@ -91,6 +113,13 @@ export default function CustomerTabNavigator() {
         options={{ 
           tabBarLabel: 'Profile',
           title: 'My Profile',
+          headerStyle: {
+            backgroundColor: '#EF4444', // Red background
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: '600',
+          },
         }}
       />
     </Tab.Navigator>
