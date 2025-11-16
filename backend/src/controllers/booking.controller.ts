@@ -10,6 +10,7 @@ import {
     getPastBookings,
     getAllBookings,
     cancelAnyBooking,
+    changeBookingSeat,
     type CreateBookingInput,
 } from "../services/booking.service.js";
 
@@ -205,6 +206,65 @@ export async function cancelBookingHandler(req: Request, res: Response) {
         }
         if (e.message?.includes("already departed")) {
             return sendError(res, e.message, 400);
+        }
+
+        const { status, msg } = mapPrismaError(e);
+        return sendError(res, msg, status);
+    }
+}
+
+/**
+ * PATCH /bookings/:id/seat
+ * Change seat for an existing booking
+ *
+ * Body:
+ * - seat_number: string (required)
+ */
+export async function changeBookingSeatHandler(req: Request, res: Response) {
+    const userId = (req as any).user?.userId;
+
+    if (!userId) {
+        return sendError(res, "User not authenticated", 401);
+    }
+
+    const bookingId = parseId(req.params.id);
+    if (!bookingId) {
+        return sendError(res, "Valid booking ID is required", 422);
+    }
+
+    const { seat_number } = req.body || {};
+
+    if (!seat_number || typeof seat_number !== "string") {
+        return sendError(res, "Valid seat_number is required", 422);
+    }
+
+    try {
+        const updatedBooking = await changeBookingSeat(
+            bookingId,
+            userId,
+            seat_number
+        );
+
+        return sendSuccess(
+            res,
+            updatedBooking,
+            "Seat changed successfully"
+        );
+    } catch (e: any) {
+        const message = e.message || "Failed to change seat";
+
+        if (
+            message.includes("not found") ||
+            message.includes("permission")
+        ) {
+            return sendError(res, message, 404);
+        }
+
+        if (
+            message.includes("not available") ||
+            message.includes("Only confirmed bookings")
+        ) {
+            return sendError(res, message, 400);
         }
 
         const { status, msg } = mapPrismaError(e);
