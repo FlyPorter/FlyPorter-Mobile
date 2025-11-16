@@ -17,7 +17,19 @@ import { useAuth } from '../../context/AuthContext';
 import { bookingAPI, paymentAPI } from '../../services/api';
 
 export default function PaymentScreen({ route, navigation }: any) {
-  const { flight, passengers, selectedSeats, seatPriceModifier, passengerData } = route.params;
+  const { 
+    flight, 
+    outboundFlight, 
+    returnFlight, 
+    passengers, 
+    selectedSeats, 
+    returnSelectedSeats, 
+    seatPriceModifier,
+    outboundSeatModifier,
+    returnSeatModifier,
+    passengerData, 
+    isRoundTrip 
+  } = route.params;
   const { isAuthenticated } = useAuth();
   
   const [cardNumber, setCardNumber] = useState('');
@@ -27,7 +39,14 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [processing, setProcessing] = useState(false);
 
   // Backend formula: base_price × price_modifier
-  const totalAmount = (flight.price * passengers) * (seatPriceModifier || 1.0);
+  // For round-trip: (outbound_price × outbound_modifier) + (return_price × return_modifier)
+  // Each leg has its own seat class multiplier
+  const totalAmount = isRoundTrip && outboundFlight && returnFlight
+    ? (
+        (outboundFlight.price * passengers * (outboundSeatModifier || 1.0)) +
+        (returnFlight.price * passengers * (returnSeatModifier || 1.0))
+      )
+    : (flight.price * passengers) * (seatPriceModifier || 1.0);
 
   const handlePayment = async () => {
     // Check authentication first
@@ -146,6 +165,7 @@ export default function PaymentScreen({ route, navigation }: any) {
         throw new Error('Flight ID is missing');
       }
       
+      // Create outbound booking
       const bookingResponse = await bookingAPI.create({
         flight_id: typeof flightId === 'string' ? parseInt(flightId) : flightId,
         seat_number: seatNumber,
@@ -159,16 +179,43 @@ export default function PaymentScreen({ route, navigation }: any) {
       
       const booking = bookingResponseData?.data || bookingResponseData;
       const bookingId = booking?.confirmation_code || booking?.booking_id || `FP${Date.now().toString().slice(-8)}`;
+
+      // If round-trip, create return booking as well
+      let returnBookingId = null;
+      if (isRoundTrip && returnSelectedSeats && returnSelectedSeats.length > 0) {
+        const returnFlight = route.params.returnFlight;
+        const returnFirstSeat = returnSelectedSeats[0];
+        const returnSeatNumber = `${returnFirstSeat.row}${returnFirstSeat.column}`;
+        const returnFlightId = returnFlight.flight_id || (returnFlight.id ? parseInt(String(returnFlight.id)) : null);
+        
+        if (returnFlightId) {
+          const returnBookingResponse = await bookingAPI.create({
+            flight_id: typeof returnFlightId === 'string' ? parseInt(returnFlightId) : returnFlightId,
+            seat_number: returnSeatNumber,
+          });
+          
+          const returnBookingData = returnBookingResponse.data;
+          if (returnBookingData?.success !== false) {
+            const returnBooking = returnBookingData?.data || returnBookingData;
+            returnBookingId = returnBooking?.confirmation_code || returnBooking?.booking_id;
+          }
+        }
+      }
       
       setProcessing(false);
       
       navigation.replace('BookingConfirmation', {
         bookingId,
+        returnBookingId, // Pass return booking ID if applicable
         flight,
+        outboundFlight, // Pass outbound flight for round-trip
+        returnFlight, // Pass return flight for round-trip
         passengers,
         selectedSeats,
+        returnSelectedSeats, // Pass return seats if applicable
         passengerData,
         totalAmount,
+        isRoundTrip,
       });
     } catch (error: any) {
       setProcessing(false);
@@ -306,48 +353,120 @@ export default function PaymentScreen({ route, navigation }: any) {
           <Text style={styles.sectionTitle}>Booking Summary</Text>
 
           <View style={styles.summaryCard}>
-            <View style={styles.summaryHeader}>
-              <Ionicons name="airplane" size={24} color={colors.primary} />
-              <View style={styles.summaryHeaderText}>
-                <Text style={styles.flightNumber}>{flight.flightNumber}</Text>
-                <Text style={styles.route}>
-                  {flight.origin.code} → {flight.destination.code}
-                </Text>
-              </View>
-            </View>
+            {isRoundTrip && outboundFlight && returnFlight ? (
+              // Round-trip summary
+              <>
+                <View style={styles.summaryHeader}>
+                  <Ionicons name="airplane" size={24} color={colors.primary} />
+                  <View style={styles.summaryHeaderText}>
+                    <Text style={styles.flightNumber}>Round Trip</Text>
+                    <Text style={styles.route}>
+                      {outboundFlight.origin.code} ⇄ {outboundFlight.destination.code}
+                    </Text>
+                  </View>
+                </View>
 
-            <View style={styles.divider} />
+                <View style={styles.divider} />
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Passengers</Text>
-              <Text style={styles.summaryValue}>{passengers}</Text>
-            </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Passengers</Text>
+                  <Text style={styles.summaryValue}>{passengers}</Text>
+                </View>
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Seats</Text>
-              <Text style={styles.summaryValue}>
-                {selectedSeats.map((s: any) => `${s.row}${s.column}`).join(', ')}
-              </Text>
-            </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Outbound Seats</Text>
+                  <Text style={styles.summaryValue}>
+                    {selectedSeats.map((s: any) => `${s.row}${s.column}`).join(', ')}
+                  </Text>
+                </View>
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Base Fare</Text>
-              <Text style={styles.summaryValue}>
-                ${(flight.price * passengers).toFixed(2)}
-              </Text>
-            </View>
+                {returnSelectedSeats && returnSelectedSeats.length > 0 && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Return Seats</Text>
+                    <Text style={styles.summaryValue}>
+                      {returnSelectedSeats.map((s: any) => `${s.row}${s.column}`).join(', ')}
+                    </Text>
+                  </View>
+                )}
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Seat Class Multiplier</Text>
-              <Text style={styles.summaryValue}>×{(seatPriceModifier || 1.0).toFixed(1)}</Text>
-            </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Outbound Fare</Text>
+                  <Text style={styles.summaryValue}>
+                    ${(outboundFlight.price * passengers).toFixed(2)}
+                  </Text>
+                </View>
 
-            <View style={styles.divider} />
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Outbound Seat Multiplier</Text>
+                  <Text style={styles.summaryValue}>×{(outboundSeatModifier || 1.0).toFixed(1)}</Text>
+                </View>
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
-            </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Return Fare</Text>
+                  <Text style={styles.summaryValue}>
+                    ${(returnFlight.price * passengers).toFixed(2)}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Return Seat Multiplier</Text>
+                  <Text style={styles.summaryValue}>×{(returnSeatModifier || 1.0).toFixed(1)}</Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.totalLabel}>Total Amount</Text>
+                  <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
+                </View>
+              </>
+            ) : (
+              // One-way summary
+              <>
+                <View style={styles.summaryHeader}>
+                  <Ionicons name="airplane" size={24} color={colors.primary} />
+                  <View style={styles.summaryHeaderText}>
+                    <Text style={styles.flightNumber}>{flight.flightNumber}</Text>
+                    <Text style={styles.route}>
+                      {flight.origin.code} → {flight.destination.code}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Passengers</Text>
+                  <Text style={styles.summaryValue}>{passengers}</Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Seats</Text>
+                  <Text style={styles.summaryValue}>
+                    {selectedSeats.map((s: any) => `${s.row}${s.column}`).join(', ')}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Base Fare</Text>
+                  <Text style={styles.summaryValue}>
+                    ${(flight.price * passengers).toFixed(2)}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Seat Class Multiplier</Text>
+                  <Text style={styles.summaryValue}>×{(seatPriceModifier || 1.0).toFixed(1)}</Text>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.summaryRow}>
+                  <Text style={styles.totalLabel}>Total Amount</Text>
+                  <Text style={styles.totalValue}>${totalAmount.toFixed(2)}</Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
 

@@ -22,7 +22,18 @@ interface PassengerInfo {
 }
 
 export default function PassengerInfoScreen({ route, navigation }: any) {
-  const { flight, passengers, selectedSeats, seatPriceModifier } = route.params;
+  const { 
+    flight, 
+    outboundFlight, 
+    returnFlight, 
+    passengers, 
+    selectedSeats, 
+    returnSelectedSeats, 
+    seatPriceModifier,
+    outboundSeatModifier,
+    returnSeatModifier,
+    isRoundTrip 
+  } = route.params;
   
   const [passengerData, setPassengerData] = useState<PassengerInfo[]>(
     Array(passengers).fill(null).map(() => ({
@@ -51,10 +62,16 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
 
     navigation.navigate('Payment', {
       flight,
+      outboundFlight,
+      returnFlight,
       passengers,
       selectedSeats,
-      seatPriceModifier, // Pass modifier to match backend calculation
+      returnSelectedSeats, // Pass return seats if round-trip
+      seatPriceModifier, // Keep for backward compatibility
+      outboundSeatModifier,
+      returnSeatModifier,
       passengerData,
+      isRoundTrip,
     });
   };
 
@@ -78,14 +95,24 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
               <Text style={styles.passengerTitle}>
                 Passenger {index + 1}
               </Text>
-              {selectedSeats[index] && (
-                <View style={styles.seatBadge}>
-                  <Ionicons name="airplane" size={14} color={colors.primary} />
-                  <Text style={styles.seatBadgeText}>
-                    Seat {selectedSeats[index].row}{selectedSeats[index].column}
-                  </Text>
-                </View>
-              )}
+              <View style={styles.seatBadgesContainer}>
+                {selectedSeats[index] && (
+                  <View style={styles.seatBadge}>
+                    <Ionicons name="airplane" size={14} color={colors.primary} />
+                    <Text style={styles.seatBadgeText}>
+                      Outbound: {selectedSeats[index].row}{selectedSeats[index].column}
+                    </Text>
+                  </View>
+                )}
+                {returnSelectedSeats && returnSelectedSeats[index] && (
+                  <View style={styles.seatBadge}>
+                    <Ionicons name="airplane" size={14} color={colors.primary} />
+                    <Text style={styles.seatBadgeText}>
+                      Return: {returnSelectedSeats[index].row}{returnSelectedSeats[index].column}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
@@ -138,28 +165,84 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Price Summary</Text>
           
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>
-              Flight ({passengers} × ${flight.price})
-            </Text>
-            <Text style={styles.summaryValue}>
-              ${(flight.price * passengers).toFixed(2)}
-            </Text>
-          </View>
+          {isRoundTrip && outboundFlight && returnFlight ? (
+            // Round-trip pricing
+            <>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>
+                  Outbound Flight ({passengers} × ${outboundFlight.price})
+                </Text>
+                <Text style={styles.summaryValue}>
+                  ${(outboundFlight.price * passengers).toFixed(2)}
+                </Text>
+              </View>
 
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Seat Class Multiplier</Text>
-            <Text style={styles.summaryValue}>×{(seatPriceModifier || 1.0).toFixed(1)}</Text>
-          </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>
+                  Outbound Seat Multiplier
+                </Text>
+                <Text style={styles.summaryValue}>
+                  ×{(outboundSeatModifier || 1.0).toFixed(1)}
+                </Text>
+              </View>
 
-          <View style={styles.divider} />
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>
+                  Return Flight ({passengers} × ${returnFlight.price})
+                </Text>
+                <Text style={styles.summaryValue}>
+                  ${(returnFlight.price * passengers).toFixed(2)}
+                </Text>
+              </View>
 
-          <View style={styles.summaryRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>
-              ${((flight.price * passengers) * (seatPriceModifier || 1.0)).toFixed(2)}
-            </Text>
-          </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>
+                  Return Seat Multiplier
+                </Text>
+                <Text style={styles.summaryValue}>
+                  ×{(returnSeatModifier || 1.0).toFixed(1)}
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.summaryRow}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalValue}>
+                  ${(
+                    (outboundFlight.price * passengers * (outboundSeatModifier || 1.0)) +
+                    (returnFlight.price * passengers * (returnSeatModifier || 1.0))
+                  ).toFixed(2)}
+                </Text>
+              </View>
+            </>
+          ) : (
+            // One-way pricing
+            <>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>
+                  Flight ({passengers} × ${flight.price})
+                </Text>
+                <Text style={styles.summaryValue}>
+                  ${(flight.price * passengers).toFixed(2)}
+                </Text>
+              </View>
+
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Seat Class Multiplier</Text>
+                <Text style={styles.summaryValue}>×{(seatPriceModifier || 1.0).toFixed(1)}</Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.summaryRow}>
+                <Text style={styles.totalLabel}>Total</Text>
+                <Text style={styles.totalValue}>
+                  ${((flight.price * passengers) * (seatPriceModifier || 1.0)).toFixed(2)}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         <View style={{ height: 100 }} />
@@ -217,6 +300,10 @@ const styles = StyleSheet.create({
     ...typography.h4,
     color: colors.text,
     flex: 1,
+  },
+  seatBadgesContainer: {
+    flexDirection: 'column',
+    gap: spacing.xs,
   },
   seatBadge: {
     flexDirection: 'row',

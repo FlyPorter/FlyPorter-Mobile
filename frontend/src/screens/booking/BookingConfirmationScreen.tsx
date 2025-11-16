@@ -34,7 +34,19 @@ const getAirportTimezone = (airportCode: string): string => {
 };
 
 export default function BookingConfirmationScreen({ route, navigation }: any) {
-  const { bookingId, flight, passengers, selectedSeats, passengerData, totalAmount } = route.params;
+  const { 
+    bookingId, 
+    returnBookingId,
+    flight, 
+    outboundFlight,
+    returnFlight,
+    passengers, 
+    selectedSeats,
+    returnSelectedSeats,
+    passengerData, 
+    totalAmount,
+    isRoundTrip 
+  } = route.params;
   
   // Helper function to format date from date string or UTC timestamp
   const formatFlightDate = (dateString: string) => {
@@ -95,52 +107,64 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
     }
   };
 
-  // Get flight departure time from multiple possible sources
-  // Priority: departure_time (UTC timestamp from DB) > departureTime > departureDate
-  const departureTimestamp = flight?.departure_time || 
-                             flight?.departureTime || 
-                             flight?.departureDate ||
-                             flight?.date;
-  
-  const formattedFlightDate = formatFlightDate(departureTimestamp);
-  
-  // Get airport codes for timezone lookup
-  const originCode = flight?.origin?.code || '';
-  const destCode = flight?.destination?.code || '';
-  
-  // Format times in city-specific timezones with airport timezone map as fallback
-  const departureTimeWithTz = formatFlightTime(
-    flight?.departure_time || flight?.departureTime || '',
-    flight?.origin?.timezone || getAirportTimezone(originCode)
-  );
-  const arrivalTimeWithTz = formatFlightTime(
-    flight?.arrival_time || flight?.arrivalTime || '',
-    flight?.destination?.timezone || getAirportTimezone(destCode)
-  );
-  
-  // Ensure flight object has all required fields with fallbacks
-  const safeFlight = {
-    ...flight,
-    origin: {
-      code: originCode,
-      city: flight?.origin?.city || flight?.origin?.name || '',
-      name: flight?.origin?.name || flight?.origin?.city || '',
-      timezone: flight?.origin?.timezone || getAirportTimezone(originCode),
-    },
-    destination: {
-      code: destCode,
-      city: flight?.destination?.city || flight?.destination?.name || '',
-      name: flight?.destination?.name || flight?.destination?.city || '',
-      timezone: flight?.destination?.timezone || getAirportTimezone(destCode),
-    },
-    departureTime: departureTimeWithTz || flight?.departureTime || '',
-    arrivalTime: arrivalTimeWithTz || flight?.arrivalTime || '',
-    duration: flight?.duration || '',
-    flightNumber: flight?.flightNumber || '',
-    airline: {
-      name: flight?.airline?.name || 'FlyPorter',
-    },
+  // Helper function to prepare flight data with proper formatting
+  const prepareFlightData = (flightData: any) => {
+    if (!flightData) return null;
+    
+    const departureTimestamp = flightData?.departure_time || 
+                               flightData?.departureTime || 
+                               flightData?.departureDate ||
+                               flightData?.date;
+    
+    const formattedDate = formatFlightDate(departureTimestamp);
+    
+    const originCode = flightData?.origin?.code || '';
+    const destCode = flightData?.destination?.code || '';
+    
+    const departureTimeWithTz = formatFlightTime(
+      flightData?.departure_time || flightData?.departureTime || '',
+      flightData?.origin?.timezone || getAirportTimezone(originCode)
+    );
+    const arrivalTimeWithTz = formatFlightTime(
+      flightData?.arrival_time || flightData?.arrivalTime || '',
+      flightData?.destination?.timezone || getAirportTimezone(destCode)
+    );
+    
+    return {
+      ...flightData,
+      formattedDate,
+      origin: {
+        code: originCode,
+        city: flightData?.origin?.city || flightData?.origin?.name || '',
+        name: flightData?.origin?.name || flightData?.origin?.city || '',
+        timezone: flightData?.origin?.timezone || getAirportTimezone(originCode),
+      },
+      destination: {
+        code: destCode,
+        city: flightData?.destination?.city || flightData?.destination?.name || '',
+        name: flightData?.destination?.name || flightData?.destination?.city || '',
+        timezone: flightData?.destination?.timezone || getAirportTimezone(destCode),
+      },
+      departureTime: departureTimeWithTz || flightData?.departureTime || '',
+      arrivalTime: arrivalTimeWithTz || flightData?.arrivalTime || '',
+      duration: flightData?.duration || '',
+      flightNumber: flightData?.flightNumber || '',
+      airline: {
+        name: flightData?.airline?.name || 'FlyPorter',
+      },
+    };
   };
+
+  // Prepare flight data based on trip type
+  const safeFlight = isRoundTrip && outboundFlight 
+    ? prepareFlightData(outboundFlight)
+    : prepareFlightData(flight);
+  
+  const safeReturnFlight = isRoundTrip && returnFlight 
+    ? prepareFlightData(returnFlight)
+    : null;
+  
+  const formattedFlightDate = safeFlight?.formattedDate || '';
 
   const handleDownloadPDF = async () => {
     try {
@@ -210,18 +234,32 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
                 <span class="label">Booking Reference:</span>
                 <span>${bookingId}</span>
               </div>
+              ${isRoundTrip && returnBookingId ? `<div class="info-row">
+                <span class="label">Return Booking Reference:</span>
+                <span>${returnBookingId}</span>
+              </div>` : ''}
               <div class="info-row">
                 <span class="label">Flight Number:</span>
                 <span>${safeFlight.flightNumber}</span>
               </div>
               <div class="info-row">
                 <span class="label">Date:</span>
-                <span>${formattedFlightDate}</span>
+                <span>${safeFlight.formattedDate}</span>
               </div>
             </div>
 
             <div class="section">
               <div class="section-title">Flight Details</div>
+              
+              ${isRoundTrip ? '<p style="font-weight: bold; color: #C8102E; margin-bottom: 10px;">Outbound Flight</p>' : ''}
+              <div class="info-row">
+                <span class="label">Flight Number:</span>
+                <span>${safeFlight.flightNumber}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Date:</span>
+                <span>${safeFlight.formattedDate}</span>
+              </div>
               <div class="info-row">
                 <span class="label">From:</span>
                 <span>${safeFlight.origin.city || safeFlight.origin.name || ''} (${safeFlight.origin.code})</span>
@@ -242,6 +280,38 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
                 <span class="label">Duration:</span>
                 <span>${safeFlight.duration}</span>
               </div>` : ''}
+              
+              ${isRoundTrip && safeReturnFlight ? `
+                <p style="font-weight: bold; color: #C8102E; margin-top: 20px; margin-bottom: 10px;">Return Flight</p>
+                <div class="info-row">
+                  <span class="label">Flight Number:</span>
+                  <span>${safeReturnFlight.flightNumber}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">Date:</span>
+                  <span>${safeReturnFlight.formattedDate}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">From:</span>
+                  <span>${safeReturnFlight.origin.city || safeReturnFlight.origin.name || ''} (${safeReturnFlight.origin.code})</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">To:</span>
+                  <span>${safeReturnFlight.destination.city || safeReturnFlight.destination.name || ''} (${safeReturnFlight.destination.code})</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">Departure:</span>
+                  <span>${safeReturnFlight.departureTime}</span>
+                </div>
+                <div class="info-row">
+                  <span class="label">Arrival:</span>
+                  <span>${safeReturnFlight.arrivalTime}</span>
+                </div>
+                ${safeReturnFlight.duration ? `<div class="info-row">
+                  <span class="label">Duration:</span>
+                  <span>${safeReturnFlight.duration}</span>
+                </div>` : ''}
+              ` : ''}
             </div>
 
             <div class="section">
@@ -249,8 +319,18 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
               ${passengerData.map((p: any, i: number) => `
                 <div class="info-row">
                   <span class="label">Passenger ${i + 1}:</span>
-                  <span>${p.firstName} ${p.lastName} - Seat ${selectedSeats[i].row}${selectedSeats[i].column}</span>
+                  <span>${p.firstName} ${p.lastName}</span>
                 </div>
+                <div class="info-row" style="padding-left: 20px;">
+                  <span class="label">${isRoundTrip ? 'Outbound Seat:' : 'Seat:'}</span>
+                  <span>${selectedSeats[i].row}${selectedSeats[i].column}</span>
+                </div>
+                ${isRoundTrip && returnSelectedSeats && returnSelectedSeats[i] ? `
+                  <div class="info-row" style="padding-left: 20px;">
+                    <span class="label">Return Seat:</span>
+                    <span>${returnSelectedSeats[i].row}${returnSelectedSeats[i].column}</span>
+                  </div>
+                ` : ''}
               `).join('')}
             </div>
 
@@ -320,37 +400,77 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Flight Details</Text>
           
-          <View style={styles.flightCard}>
-            <View style={styles.flightHeader}>
-              <View>
-                <Text style={styles.airline}>{safeFlight.airline.name}</Text>
-                <Text style={styles.flightNumber}>Flight {safeFlight.flightNumber}</Text>
+          {/* Outbound Flight */}
+          {safeFlight && (
+            <View style={styles.flightCard}>
+              {isRoundTrip && <Text style={styles.flightLabel}>Outbound Flight</Text>}
+              <View style={styles.flightHeader}>
+                <View>
+                  <Text style={styles.airline}>{safeFlight.airline.name}</Text>
+                  <Text style={styles.flightNumber}>Flight {safeFlight.flightNumber}</Text>
+                </View>
+                <View style={styles.dateBadge}>
+                  <Ionicons name="calendar" size={16} color={colors.primary} />
+                  <Text style={styles.dateText}>{safeFlight.formattedDate}</Text>
+                </View>
               </View>
-              <View style={styles.dateBadge}>
-                <Ionicons name="calendar" size={16} color={colors.primary} />
-                <Text style={styles.dateText}>{formattedFlightDate}</Text>
+
+              <View style={styles.routeInfo}>
+                <View style={styles.airport}>
+                  <Text style={styles.airportCode}>{safeFlight.origin.code}</Text>
+                  <Text style={styles.airportTime}>{safeFlight.departureTime}</Text>
+                  <Text style={styles.airportName}>{safeFlight.origin.city}</Text>
+                </View>
+
+                <View style={styles.routeMiddle}>
+                  <Ionicons name="airplane" size={24} color={colors.primary} />
+                  <Text style={styles.duration}>{safeFlight.duration}</Text>
+                </View>
+
+                <View style={styles.airport}>
+                  <Text style={styles.airportCode}>{safeFlight.destination.code}</Text>
+                  <Text style={styles.airportTime}>{safeFlight.arrivalTime}</Text>
+                  <Text style={styles.airportName}>{safeFlight.destination.city}</Text>
+                </View>
               </View>
             </View>
+          )}
 
-            <View style={styles.routeInfo}>
-              <View style={styles.airport}>
-                <Text style={styles.airportCode}>{safeFlight.origin.code}</Text>
-                <Text style={styles.airportTime}>{safeFlight.departureTime}</Text>
-                <Text style={styles.airportName}>{safeFlight.origin.city}</Text>
+          {/* Return Flight */}
+          {isRoundTrip && safeReturnFlight && (
+            <View style={[styles.flightCard, { marginTop: spacing.md }]}>
+              <Text style={styles.flightLabel}>Return Flight</Text>
+              <View style={styles.flightHeader}>
+                <View>
+                  <Text style={styles.airline}>{safeReturnFlight.airline.name}</Text>
+                  <Text style={styles.flightNumber}>Flight {safeReturnFlight.flightNumber}</Text>
+                </View>
+                <View style={styles.dateBadge}>
+                  <Ionicons name="calendar" size={16} color={colors.primary} />
+                  <Text style={styles.dateText}>{safeReturnFlight.formattedDate}</Text>
+                </View>
               </View>
 
-              <View style={styles.routeMiddle}>
-                <Ionicons name="airplane" size={24} color={colors.primary} />
-                <Text style={styles.duration}>{safeFlight.duration}</Text>
-              </View>
+              <View style={styles.routeInfo}>
+                <View style={styles.airport}>
+                  <Text style={styles.airportCode}>{safeReturnFlight.origin.code}</Text>
+                  <Text style={styles.airportTime}>{safeReturnFlight.departureTime}</Text>
+                  <Text style={styles.airportName}>{safeReturnFlight.origin.city}</Text>
+                </View>
 
-              <View style={styles.airport}>
-                <Text style={styles.airportCode}>{safeFlight.destination.code}</Text>
-                <Text style={styles.airportTime}>{safeFlight.arrivalTime}</Text>
-                <Text style={styles.airportName}>{safeFlight.destination.city}</Text>
+                <View style={styles.routeMiddle}>
+                  <Ionicons name="airplane" size={24} color={colors.primary} />
+                  <Text style={styles.duration}>{safeReturnFlight.duration}</Text>
+                </View>
+
+                <View style={styles.airport}>
+                  <Text style={styles.airportCode}>{safeReturnFlight.destination.code}</Text>
+                  <Text style={styles.airportTime}>{safeReturnFlight.arrivalTime}</Text>
+                  <Text style={styles.airportName}>{safeReturnFlight.destination.city}</Text>
+                </View>
               </View>
             </View>
-          </View>
+          )}
         </View>
 
         {/* Passenger Information */}
@@ -369,11 +489,21 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
                   </Text>
                 </View>
               </View>
-              <View style={styles.seatBadge}>
-                <Ionicons name="airplane" size={16} color="#fff" />
-                <Text style={styles.seatText}>
-                  {selectedSeats[index].row}{selectedSeats[index].column}
-                </Text>
+              <View style={styles.seatBadgeContainer}>
+                <View style={styles.seatBadge}>
+                  <Ionicons name="airplane" size={16} color="#fff" />
+                  <Text style={styles.seatText}>
+                    {isRoundTrip ? 'Out: ' : ''}{selectedSeats[index].row}{selectedSeats[index].column}
+                  </Text>
+                </View>
+                {isRoundTrip && returnSelectedSeats && returnSelectedSeats[index] && (
+                  <View style={[styles.seatBadge, { marginTop: spacing.xs }]}>
+                    <Ionicons name="airplane" size={16} color="#fff" />
+                    <Text style={styles.seatText}>
+                      Ret: {returnSelectedSeats[index].row}{returnSelectedSeats[index].column}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           ))}
@@ -527,6 +657,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  flightLabel: {
+    ...typography.body2,
+    fontWeight: '600',
+    color: colors.primary,
+    marginBottom: spacing.sm,
+  },
   flightHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -615,6 +751,10 @@ const styles = StyleSheet.create({
   passengerMeta: {
     ...typography.caption,
     color: colors.textSecondary,
+  },
+  seatBadgeContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
   },
   seatBadge: {
     flexDirection: 'row',

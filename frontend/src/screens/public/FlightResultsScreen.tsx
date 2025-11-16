@@ -434,143 +434,66 @@ export default function FlightResultsScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {returnDate ? (
-        // Round trip - Split view
-        <View style={styles.splitContainer}>
-          {/* Outbound Side */}
-          <TouchableOpacity
-            style={[
-              styles.splitSide,
-              expandedSide === 'outbound' && styles.expandedSide,
-              expandedSide !== 'outbound' && styles.collapsedSide,
-            ]}
-            onPress={() => handleSideToggle('outbound')}
-            activeOpacity={0.9}
-          >
-            <View style={styles.sideHeader}>
-              <Text style={styles.sideTitle}>Depart</Text>
-              <Text style={styles.sideDate}>{departDate}</Text>
-              {selectedOutbound && (
-                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-              )}
-            </View>
-            
-            {expandedSide === 'outbound' ? (
-              <ScrollView style={styles.sideContent} nestedScrollEnabled>
-                {outboundFlights.length === 0 && !loading && (
-                  <Text style={styles.noFlightsText}>No flights found</Text>
-                )}
-                {outboundFlights.map((flight) =>
-                  renderFlightCard(
-                    flight,
-                    selectedOutbound?.id === flight.id,
-                    handleSelectOutbound
-                  )
-                )}
-              </ScrollView>
-            ) : (
-              <View style={styles.collapsedContent}>
-                {selectedOutbound ? (
-                  <View style={styles.miniFlightCard}>
-                    <Text style={styles.miniFlightTime}>
-                      {formatTimeWithTimezone(selectedOutbound.departure_time || selectedOutbound.departureTime, selectedOutbound.origin.timezone)} → {formatTimeWithTimezone(selectedOutbound.arrival_time || selectedOutbound.arrivalTime, selectedOutbound.destination.timezone)}
-                    </Text>
-                    <Text style={styles.miniFlightPrice}>${selectedOutbound.price}</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.tapToSelectText}>Tap to select</Text>
-                )}
-              </View>
+      <ScrollView style={styles.content}>
+        {/* Outbound Flights Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Depart</Text>
+            {selectedOutbound && (
+              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
             )}
-          </TouchableOpacity>
+          </View>
+          <Text style={styles.sectionSubtitle}>
+            {departDate}
+          </Text>
+          
+          {outboundFlights.length === 0 && !loading && (
+            <Text style={styles.noFlightsText}>No flights found</Text>
+          )}
+          
+          {outboundFlights.map((flight) =>
+            renderFlightCard(
+              flight,
+              selectedOutbound?.id === flight.id,
+              handleSelectOutbound
+            )
+          )}
+        </View>
 
-          {/* Return Side */}
-          <TouchableOpacity
-            style={[
-              styles.splitSide,
-              styles.splitSideRight,
-              expandedSide === 'return' && styles.expandedSide,
-              expandedSide !== 'return' && styles.collapsedSide,
-            ]}
-            onPress={() => handleSideToggle('return')}
-            activeOpacity={0.9}
-            disabled={!selectedOutbound}
-          >
-            <View style={styles.sideHeader}>
-              <View style={styles.sideTitleRow}>
-                <Text style={styles.sideTitle}>Return</Text>
-                {!selectedReturn && <Text style={styles.requiredTextMini}>Required</Text>}
-              </View>
-              <Text style={styles.sideDate}>{returnDate}</Text>
+        {/* Return Flights Section - Only show for round-trip */}
+        {returnDate && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Return</Text>
               {selectedReturn && (
                 <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
               )}
             </View>
-            
-            {expandedSide === 'return' ? (
-              <ScrollView style={styles.sideContent} nestedScrollEnabled>
-                {loadingReturn ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.loadingText}>Loading...</Text>
-                  </View>
-                ) : (
-                  <>
-                    {returnFlights.length === 0 ? (
-                      <Text style={styles.noFlightsText}>No return flights found</Text>
-                    ) : (
-                      returnFlights.map((flight) =>
-                        renderFlightCard(
-                          flight,
-                          selectedReturn?.id === flight.id,
-                          handleSelectReturn
-                        )
-                      )
-                    )}
-                  </>
-                )}
-              </ScrollView>
-            ) : (
-              <View style={styles.collapsedContent}>
-                {selectedReturn ? (
-                  <View style={styles.miniFlightCard}>
-                    <Text style={styles.miniFlightTime}>
-                      {formatTimeWithTimezone(selectedReturn.departure_time || selectedReturn.departureTime, selectedReturn.origin.timezone)} → {formatTimeWithTimezone(selectedReturn.arrival_time || selectedReturn.arrivalTime, selectedReturn.destination.timezone)}
-                    </Text>
-                    <Text style={styles.miniFlightPrice}>${selectedReturn.price}</Text>
-                  </View>
-                ) : selectedOutbound ? (
-                  <Text style={styles.tapToSelectText}>Tap to select</Text>
-                ) : (
-                  <Text style={styles.tapToSelectTextDisabled}>Select depart first</Text>
-                )}
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      ) : (
-        // One way - Normal scroll view
-        <ScrollView style={styles.content}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Available Flights</Text>
             <Text style={styles.sectionSubtitle}>
-              {departDate} • {origin} → {destination}
+              {returnDate}
             </Text>
             
-            {outboundFlights.length === 0 && !loading && (
-              <Text style={styles.noFlightsText}>No flights found</Text>
-            )}
-            
-            {outboundFlights.map((flight) =>
-              renderFlightCard(
-                flight,
-                selectedOutbound?.id === flight.id,
-                handleSelectOutbound
+            {loadingReturn ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Loading return flights...</Text>
+              </View>
+            ) : returnFlights.length === 0 ? (
+              <Text style={styles.noFlightsText}>
+                {selectedOutbound ? 'No return flights found' : 'Select an outbound flight first'}
+              </Text>
+            ) : (
+              returnFlights.map((flight) =>
+                renderFlightCard(
+                  flight,
+                  selectedReturn?.id === flight.id,
+                  handleSelectReturn
+                )
               )
             )}
           </View>
-        </ScrollView>
-      )}
+        )}
+      </ScrollView>
 
       {/* Next Button - Always visible at bottom */}
       <View style={styles.footer}>
@@ -632,12 +555,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.xs,
   },
-  sectionTitle: {
-    ...typography.h4,
-    color: colors.text,
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     marginTop: spacing.md,
     marginBottom: spacing.xs,
+  },
+  sectionTitle: {
+    ...typography.h4,
+    color: colors.text,
   },
   sectionSubtitle: {
     ...typography.body2,

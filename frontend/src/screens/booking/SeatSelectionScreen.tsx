@@ -35,13 +35,16 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
     bookingId,  // Optional: if changing seat from booking details
     currentSeatNumber,  // Optional: current seat to pre-select
     currentSeatClass, // Optional: current seat price modifier to filter seats
+    outboundSelectedSeats, // Optional: seats selected for outbound flight (when selecting return)
+    selectingReturn, // Optional: true if currently selecting return flight seats
   } = route.params;
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Use the appropriate flight
-  const currentFlight = isRoundTrip ? outboundFlight : flight;
+  // Determine which flight we're selecting seats for
+  const isSelectingReturn = selectingReturn || false;
+  const currentFlight = isSelectingReturn ? returnFlight : (isRoundTrip ? outboundFlight : flight);
   const flightId = currentFlight.flight_id || currentFlight.id;
 
   useEffect(() => {
@@ -190,14 +193,36 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
       return;
     }
 
-    // Normal booking flow - continue to passenger info
+    // Normal booking flow
+    // If round-trip and selecting outbound seats, navigate to return seat selection
+    if (isRoundTrip && !isSelectingReturn) {
+      navigation.replace('SeatSelection', {
+        flight,
+        outboundFlight,
+        returnFlight,
+        passengers,
+        isRoundTrip,
+        outboundSelectedSeats: selectedSeatDetails, // Pass outbound seats
+        outboundSeatModifier: firstSeatModifier, // Pass outbound seat modifier
+        selectingReturn: true, // Flag to indicate return flight selection
+      });
+      return;
+    }
+
+    // If round-trip and selecting return seats, or one-way, continue to passenger info
+    const outboundModifier = route.params.outboundSeatModifier || (isSelectingReturn ? 1.0 : firstSeatModifier);
+    const returnModifier = isSelectingReturn ? firstSeatModifier : undefined;
+
     navigation.navigate('PassengerInfo', {
       flight: isRoundTrip ? outboundFlight : flight,
       outboundFlight,
       returnFlight,
       passengers,
-      selectedSeats: selectedSeatDetails,
-      seatPriceModifier: firstSeatModifier, // Pass modifier instead of hardcoded charges
+      selectedSeats: isSelectingReturn ? outboundSelectedSeats : selectedSeatDetails, // Outbound seats
+      returnSelectedSeats: isSelectingReturn ? selectedSeatDetails : undefined, // Return seats if applicable
+      outboundSeatModifier: outboundModifier, // Outbound seat class modifier
+      returnSeatModifier: returnModifier, // Return seat class modifier (if round-trip)
+      seatPriceModifier: firstSeatModifier, // Keep for backward compatibility with one-way
       isRoundTrip,
     });
   };
@@ -217,8 +242,10 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
       if (status === 'selected') return styles.seatSelected;
       
       // Available seats - show class based on price_modifier
+      // 1.0 = Economy, 1.5 = Business, 2.0 = First Class
       if (seat.price_modifier >= 2.0) return styles.seatFirstClass;
-      if (seat.price_modifier >= 1.5) return styles.seatBusiness;
+      if (seat.price_modifier > 1.0) return styles.seatBusiness;
+      // All seats with multiplier <= 1.0 are economy
       return styles.seatEconomy;
     };
 
@@ -327,8 +354,17 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
-          {bookingId ? 'Change Your Seat' : 'Select Your Seats'}
+          {bookingId ? 'Change Your Seat' : (
+            isRoundTrip 
+              ? (isSelectingReturn ? 'Select Return Flight Seats' : 'Select Outbound Flight Seats')
+              : 'Select Your Seats'
+          )}
         </Text>
+        {isRoundTrip && !bookingId && (
+          <Text style={styles.headerSubtitle}>
+            {currentFlight.origin?.code || currentFlight.origin} → {currentFlight.destination?.code || currentFlight.destination}
+          </Text>
+        )}
         <Text style={styles.headerSubtitle}>
           {selectedSeats.length} of {passengers} selected
         </Text>
