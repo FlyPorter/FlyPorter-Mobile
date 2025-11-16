@@ -1,6 +1,13 @@
 import type { Request, Response } from "express";
 import type { FlightSearchFilters } from "../services/flight.service.js";
-import { createFlight, listFlights, getFlightById, deleteFlightById, updateFlightById, searchFlights } from "../services/flight.service.js";
+import {
+  createFlight,
+  listFlights,
+  getFlightById,
+  deleteFlightById,
+  updateFlightById,
+  searchFlights,
+} from "../services/flight.service.js";
 import { sendSuccess, sendError } from "../utils/response.util.js";
 
 export async function searchFlightsHandler(req: Request, res: Response) {
@@ -14,6 +21,25 @@ export async function searchFlightsHandler(req: Request, res: Response) {
     return sendSuccess(res, results);
   } catch (e: any) {
     const msg = e?.message || "Failed to search flights";
+    return sendError(res, msg, 500);
+  }
+}
+
+export async function searchRoundTripFlightsHandler(req: Request, res: Response) {
+  const parsed = parseRoundTripFlightSearchQuery(req.query);
+  if ("error" in parsed) {
+    return sendError(res, parsed.error, 400);
+  }
+
+  try {
+    const [outbound, inbound] = await Promise.all([
+      searchFlights(parsed.outboundFilters),
+      searchFlights(parsed.inboundFilters),
+    ]);
+
+    return sendSuccess(res, { outbound, inbound });
+  } catch (e: any) {
+    const msg = e?.message || "Failed to search round trip flights";
     return sendError(res, msg, 500);
   }
 }
@@ -183,6 +209,149 @@ function parseFlightSearchQuery(query: Request["query"]): { filters: FlightSearc
   }
 
   return { filters };
+}
+
+function parseRoundTripFlightSearchQuery(
+  query: Request["query"]
+):
+  | { outboundFilters: FlightSearchFilters; inboundFilters: FlightSearchFilters }
+  | { error: string } {
+  const departureAirportRaw = getSingleQueryValue(query.departure_airport);
+  const destinationAirportRaw = getSingleQueryValue(query.destination_airport);
+  const departureDateRaw = getSingleQueryValue(query.date);
+  const returnDateRaw = getSingleQueryValue(query.return_date);
+  const minPriceRaw = getSingleQueryValue(query.min_price);
+  const maxPriceRaw = getSingleQueryValue(query.max_price);
+  const minDurationRaw = getSingleQueryValue(query.min_duration);
+  const maxDurationRaw = getSingleQueryValue(query.max_duration);
+  const minDepartureTimeRaw = getSingleQueryValue(query.min_departure_time);
+  const maxDepartureTimeRaw = getSingleQueryValue(query.max_departure_time);
+
+  if (!departureAirportRaw || !destinationAirportRaw) {
+    return { error: "departure_airport and destination_airport are required for round trip search" };
+  }
+
+  if (!departureDateRaw || !returnDateRaw) {
+    return { error: "date and return_date are required for round trip search" };
+  }
+
+  const outbound: FlightSearchFilters = {};
+  const inbound: FlightSearchFilters = {};
+
+  const origin = departureAirportRaw.toUpperCase();
+  const dest = destinationAirportRaw.toUpperCase();
+
+  if (!AIRPORT_CODE_REGEX.test(origin)) {
+    return { error: "departure_airport must be a 3-letter airport code" };
+  }
+  if (!AIRPORT_CODE_REGEX.test(dest)) {
+    return { error: "destination_airport must be a 3-letter airport code" };
+  }
+
+  outbound.departureAirport = origin;
+  outbound.destinationAirport = dest;
+  inbound.departureAirport = dest;
+  inbound.destinationAirport = origin;
+
+  if (!DATE_REGEX.test(departureDateRaw)) {
+    return { error: "date must be in YYYY-MM-DD format" };
+  }
+  if (!DATE_REGEX.test(returnDateRaw)) {
+    return { error: "return_date must be in YYYY-MM-DD format" };
+  }
+
+  const outboundRange = buildDateRange(departureDateRaw);
+  const inboundRange = buildDateRange(returnDateRaw);
+
+  if (!outboundRange) {
+    return { error: "date is invalid" };
+  }
+  if (!inboundRange) {
+    return { error: "return_date is invalid" };
+  }
+
+  outbound.departureDateRange = outboundRange;
+  inbound.departureDateRange = inboundRange;
+
+  if (minPriceRaw !== undefined) {
+    const parsed = parseNonNegativeNumber(minPriceRaw);
+    if (parsed === null) {
+      return { error: "min_price must be a non-negative number" };
+    }
+    outbound.minPrice = parsed;
+    inbound.minPrice = parsed;
+  }
+
+  if (maxPriceRaw !== undefined) {
+    const parsed = parseNonNegativeNumber(maxPriceRaw);
+    if (parsed === null) {
+      return { error: "max_price must be a non-negative number" };
+    }
+    outbound.maxPrice = parsed;
+    inbound.maxPrice = parsed;
+  }
+
+  if (
+    outbound.minPrice != null &&
+    outbound.maxPrice != null &&
+    outbound.minPrice > outbound.maxPrice
+  ) {
+    return { error: "min_price cannot be greater than max_price" };
+  }
+
+  if (minDurationRaw !== undefined) {
+    const parsed = parseNonNegativeInteger(minDurationRaw);
+    if (parsed === null) {
+      return { error: "min_duration must be a non-negative integer" };
+    }
+    outbound.minDurationMinutes = parsed;
+    inbound.minDurationMinutes = parsed;
+  }
+
+  if (maxDurationRaw !== undefined) {
+    const parsed = parseNonNegativeInteger(maxDurationRaw);
+    if (parsed === null) {
+      return { error: "max_duration must be a non-negative integer" };
+    }
+    outbound.maxDurationMinutes = parsed;
+    inbound.maxDurationMinutes = parsed;
+  }
+
+  if (
+    outbound.minDurationMinutes != null &&
+    outbound.maxDurationMinutes != null &&
+    outbound.minDurationMinutes > outbound.maxDurationMinutes
+  ) {
+    return { error: "min_duration cannot be greater than max_duration" };
+  }
+
+  if (minDepartureTimeRaw !== undefined) {
+    const parsed = parseTimeToMinutes(minDepartureTimeRaw);
+    if (parsed === null) {
+      return { error: "min_departure_time must be in HH:mm (24-hour) format" };
+    }
+    outbound.minDepartureMinutes = parsed;
+    inbound.minDepartureMinutes = parsed;
+  }
+
+  if (maxDepartureTimeRaw !== undefined) {
+    const parsed = parseTimeToMinutes(maxDepartureTimeRaw);
+    if (parsed === null) {
+      return { error: "max_departure_time must be in HH:mm (24-hour) format" };
+    }
+    outbound.maxDepartureMinutes = parsed;
+    inbound.maxDepartureMinutes = parsed;
+  }
+
+  if (
+    outbound.minDepartureMinutes != null &&
+    outbound.maxDepartureMinutes != null &&
+    outbound.minDepartureMinutes > outbound.maxDepartureMinutes
+  ) {
+    return { error: "min_departure_time cannot be greater than max_departure_time" };
+  }
+
+  return { outboundFilters: outbound, inboundFilters: inbound };
 }
 
 const AIRPORT_CODE_REGEX = /^[A-Z]{3}$/;
