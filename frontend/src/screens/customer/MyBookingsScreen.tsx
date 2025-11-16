@@ -206,8 +206,9 @@ export default function MyBookingsScreen() {
       // Group bookings by flight_id and booking_time (same flight + booked together = group)
       const groupedMap = new Map<string, typeof individualBookings>();
       individualBookings.forEach(booking => {
-        // Group key: flightId + booking time rounded to nearest minute
-        const bookingTimeKey = Math.floor(booking.bookingTime / 60000); // Round to minute
+        // Group key: flightId + booking time rounded to nearest 5 minutes
+        // This ensures bookings created in the same session are grouped together
+        const bookingTimeKey = Math.floor(booking.bookingTime / (5 * 60000)); // Round to 5 minutes
         const groupKey = `${booking.flightId}_${bookingTimeKey}`;
         
         if (!groupedMap.has(groupKey)) {

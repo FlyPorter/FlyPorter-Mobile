@@ -218,7 +218,7 @@ export default function PaymentScreen({ route, navigation }: any) {
         
         const booking = bookingResponseData?.data || bookingResponseData;
         const bookingId = booking?.confirmation_code || booking?.booking_id || `FP${Date.now().toString().slice(-8)}`;
-        bookingIds.push(bookingId);
+        createdBookingIds.push(bookingId);
       }
 
       // If round-trip, create return bookings (one per passenger/seat)
@@ -251,12 +251,12 @@ export default function PaymentScreen({ route, navigation }: any) {
       setProcessing(false);
       
       // Use the first booking ID as the primary one for navigation
-      const primaryBookingId = bookingIds[0];
+      const primaryBookingId = createdBookingIds[0];
       const primaryReturnBookingId = returnBookingIds.length > 0 ? returnBookingIds[0] : null;
       
       navigation.replace('BookingConfirmation', {
         bookingId: primaryBookingId,
-        bookingIds, // Pass all booking IDs
+        bookingIds: createdBookingIds, // Pass all booking IDs
         returnBookingId: primaryReturnBookingId,
         returnBookingIds, // Pass all return booking IDs if applicable
         flight,
