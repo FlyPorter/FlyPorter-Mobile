@@ -5,6 +5,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import FlightSearchScreen from '../screens/public/FlightSearchScreen';
 import FlightResultsScreen from '../screens/public/FlightResultsScreen';
 import FlightDetailsScreen from '../screens/public/FlightDetailsScreen';
+import AirportPickerScreen from '../screens/public/AirportPickerScreen';
 import { colors } from '../theme/theme';
 
 const Stack = createStackNavigator();
@@ -36,6 +37,14 @@ export default function AuthNavigator() {
         name="FlightDetails" 
         component={FlightDetailsScreen}
         options={{ title: 'Flight Details' }}
+      />
+      <Stack.Screen 
+        name="AirportPicker" 
+        component={AirportPickerScreen}
+        options={{ 
+          headerShown: false,
+          presentation: 'transparentModal',
+        }}
       />
       <Stack.Screen 
         name="Login" 

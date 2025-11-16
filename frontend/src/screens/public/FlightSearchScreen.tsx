@@ -201,6 +201,24 @@ export default function FlightSearchScreen({ navigation, route }: any) {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
     <View style={styles.container}>
+      {/* Header with User Info */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.welcomeText}>
+            {isAuthenticated ? `Hello, ${user?.name}` : 'Welcome to FlyPorter'}
+          </Text>
+          <Text style={styles.headerSubtext}>Where would you like to go?</Text>
+        </View>
+        {!isAuthenticated && (
+          <TouchableOpacity
+            style={styles.signInButton}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.signInText}>Sign In</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       <ScrollView
         style={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -366,6 +384,16 @@ export default function FlightSearchScreen({ navigation, route }: any) {
             <Text style={styles.searchButtonText}>Search Flights</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Info Banner */}
+        {!isAuthenticated && (
+          <View style={styles.infoBanner}>
+            <Ionicons name="information-circle" size={24} color={colors.info} />
+            <Text style={styles.infoBannerText}>
+              Sign in to book flights and manage your trips
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </View>
     </KeyboardAvoidingView>
@@ -376,6 +404,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  header: {
+    backgroundColor: colors.primary,
+    padding: spacing.lg,
+    paddingTop: Platform.OS === 'ios' ? spacing.xxl : spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  welcomeText: {
+    ...typography.h3,
+    color: '#fff',
+  },
+  headerSubtext: {
+    ...typography.body1,
+    color: '#fff',
+    marginTop: spacing.xs,
+    opacity: 0.9,
+  },
+  signInButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 20,
+  },
+  signInText: {
+    ...typography.body2,
+    color: colors.primary,
+    fontWeight: '600',
   },
   content: {
     flex: 1,
@@ -490,6 +547,7 @@ const styles = StyleSheet.create({
   },
   calendarIconCenter: {
     alignSelf: 'center',
+    marginHorizontal: spacing.sm,
   },
   dateDivider: {
     width: 1,
@@ -571,6 +629,20 @@ const styles = StyleSheet.create({
   searchButtonText: {
     ...typography.button,
     color: '#fff',
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    margin: spacing.md,
+    padding: spacing.md,
+    borderRadius: 8,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  infoBannerText: {
+    ...typography.body2,
+    color: colors.text,
+    flex: 1,
   },
 });
 
