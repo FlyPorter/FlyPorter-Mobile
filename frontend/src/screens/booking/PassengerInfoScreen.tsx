@@ -143,8 +143,13 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
                 style={styles.input}
                 placeholder="AB1234567"
                 value={passenger.passportNumber}
-                onChangeText={(value) => updatePassenger(index, 'passportNumber', value)}
+                onChangeText={(value) => {
+                  // Only allow alphanumeric characters, max 9 characters
+                  const alphanumericText = value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 9);
+                  updatePassenger(index, 'passportNumber', alphanumericText);
+                }}
                 autoCapitalize="characters"
+                maxLength={9}
               />
             </View>
 

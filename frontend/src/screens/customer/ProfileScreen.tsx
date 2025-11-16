@@ -193,9 +193,14 @@ export default function ProfileScreen() {
             <TextInput
               style={[styles.input, !editing && styles.inputDisabled]}
               value={passport}
-              onChangeText={setPassport}
+              onChangeText={(text) => {
+                // Only allow alphanumeric characters, max 9 characters
+                const alphanumericText = text.replace(/[^a-zA-Z0-9]/g, '').slice(0, 9);
+                setPassport(alphanumericText);
+              }}
               editable={editing}
               autoCapitalize="characters"
+              maxLength={9}
             />
           </View>
         </View>
