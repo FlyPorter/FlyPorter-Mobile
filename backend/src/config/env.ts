@@ -1,7 +1,18 @@
 import dotenv from "dotenv";
 
-// Load environment variables from .env file
-dotenv.config();
+// Load environment variables based on NODE_ENV
+// Development: .env
+// Production: .env.production (if exists, otherwise falls back to .env)
+// You can also set environment variables directly in DigitalOcean (recommended for production)
+const nodeEnv = process.env.NODE_ENV || "development";
+const envFile = nodeEnv === "production" ? ".env.production" : ".env";
+
+// Try to load the environment-specific file, fallback to .env if not found
+dotenv.config({ path: envFile });
+// Also load .env as fallback (for shared variables)
+if (nodeEnv === "production") {
+  dotenv.config({ path: ".env", override: false });
+}
 
 export const env = {
   DATABASE_URL: process.env.DATABASE_URL || "",
@@ -13,6 +24,7 @@ export const env = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || "",
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || "",
   GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000",
+  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
   SPACES_ENDPOINT: process.env.SPACES_ENDPOINT || "",
   SPACES_REGION: process.env.SPACES_REGION || "us-east-1",
   SPACES_ACCESS_KEY: process.env.SPACES_ACCESS_KEY || "",
