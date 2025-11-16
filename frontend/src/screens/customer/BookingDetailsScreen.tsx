@@ -7,7 +7,7 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 
 // Timezone mapping for Canadian airports
@@ -33,14 +33,14 @@ export default function BookingDetailsScreen({ route, navigation }: any) {
   const { booking } = route.params;
 
   const handleChangeSeat = () => {
-    // Navigate to seat selection with booking info
+    // Navigate to seat selection with all booking info
     navigation.navigate('SeatSelection', {
       flight: booking.flight,
       passengers: booking.passengers,
       isRoundTrip: false,
-      bookingId: booking.id,
-      currentSeatNumber: booking.seatNumber,
-      currentSeatClass: booking.seatClass, // Pass the seat class/price_modifier
+      bookingIds: booking.bookingIds, // Pass all booking IDs
+      currentSeatNumbers: booking.seatNumbers, // Pass all current seat numbers
+      currentSeatClass: booking.seatClass, // Pass the seat class/price_modifier for filtering
     });
   };
 
@@ -193,14 +193,18 @@ export default function BookingDetailsScreen({ route, navigation }: any) {
             </Text>
           </View>
 
-          {booking.seatNumber && (
+          {booking.seatNumbers && booking.seatNumbers.length > 0 && (
             <View style={styles.detailRow}>
               <View style={styles.detailItem}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                <Text style={styles.detailLabel}>Seat Number</Text>
+                <MaterialCommunityIcons name="seat" size={22} color={colors.textSecondary} />
+                <Text style={styles.detailLabel}>
+                  Seat{booking.seatNumbers.length > 1 ? 's' : ''}
+                </Text>
               </View>
               <View style={styles.seatNumberRow}>
-                <Text style={styles.detailValue}>{booking.seatNumber}</Text>
+                <Text style={styles.detailValue}>
+                  {booking.seatNumbers.join(', ')}
+                </Text>
                 {booking.status === 'confirmed' && (
                   <TouchableOpacity 
                     style={styles.changeSeatButton}

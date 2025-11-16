@@ -32,8 +32,10 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
     returnFlight, 
     passengers, 
     isRoundTrip,
-    bookingId,  // Optional: if changing seat from booking details
-    currentSeatNumber,  // Optional: current seat to pre-select
+    bookingId,  // Optional: single booking ID (legacy) if changing seat from booking details
+    bookingIds, // Optional: array of booking IDs for multi-passenger seat changes
+    currentSeatNumber,  // Optional: current seat to pre-select (single passenger)
+    currentSeatNumbers, // Optional: array of current seats (multi-passenger)
     currentSeatClass, // Optional: current seat price modifier to filter seats
     outboundSelectedSeats, // Optional: seats selected for outbound flight (when selecting return)
     selectingReturn, // Optional: true if currently selecting return flight seats
@@ -92,18 +94,15 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
         return a.column.localeCompare(b.column);
       });
       
-      // If changing seat (bookingId present), filter seats to only show same class
-      let filteredSeats = transformedSeats;
-      if (bookingId && currentSeatClass !== undefined) {
-        filteredSeats = transformedSeats.filter(seat => 
-          Math.abs(seat.price_modifier - currentSeatClass) < 0.01 // Same class only
-        );
-      }
+      // Show all available seats (no filtering by class when changing seats)
+      setSeats(transformedSeats);
       
-      setSeats(filteredSeats);
-      
-      // Pre-select current seat if changing from booking details
-      if (currentSeatNumber && bookingId) {
+      // Pre-select current seats if changing from booking details
+      if (currentSeatNumbers && currentSeatNumbers.length > 0) {
+        // Multi-passenger: pre-select all current seats
+        setSelectedSeats(currentSeatNumbers);
+      } else if (currentSeatNumber && bookingId) {
+        // Single passenger (legacy): pre-select single seat
         setSelectedSeats([currentSeatNumber]);
       }
       
@@ -149,8 +148,103 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
     // Get the price_modifier for the first selected seat (for single passenger)
     const firstSeatModifier = selectedSeatDetails[0]?.price_modifier || 1.0;
 
-    // If updating an existing booking (from booking details)
-    if (bookingId && currentSeatNumber) {
+    // If updating existing booking(s) (from booking details)
+    if (bookingIds && bookingIds.length > 0) {
+      // Multi-passenger seat changes
+      const oldSeats = currentSeatNumbers || [];
+      const newSeats = selectedSeats;
+      
+      // Check if any seats actually changed
+      const seatsChanged = oldSeats.length !== newSeats.length || 
+        !oldSeats.every((seat: string, idx: number) => seat === newSeats[idx]);
+      
+      if (!seatsChanged) {
+        Alert.alert('No Change', 'You selected the same seats.');
+        return;
+      }
+
+      // Calculate price difference
+      const oldSeatModifier = currentSeatClass || 1.0;
+      const newSeatModifiers = selectedSeatDetails.map(s => s.price_modifier);
+      const avgNewModifier = newSeatModifiers.reduce((sum, mod) => sum + mod, 0) / newSeatModifiers.length;
+      
+      // Get base price from flight
+      const basePrice = currentFlight.price || currentFlight.base_price || 0;
+      const oldTotalPrice = basePrice * oldSeatModifier * bookingIds.length;
+      const newTotalPrice = newSeatModifiers.reduce((sum, mod) => sum + (basePrice * mod), 0);
+      const priceDifference = newTotalPrice - oldTotalPrice;
+      
+      // If price increased, require payment
+      if (priceDifference > 0.01) {
+        Alert.alert(
+          'Seat Upgrade',
+          `The new seats will cost $${priceDifference.toFixed(2)} more. You'll need to complete payment for the upgrade.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Continue to Payment',
+              onPress: () => {
+                // Navigate to payment screen with upgrade info
+                navigation.navigate('Payment', {
+                  flight: currentFlight,
+                  passengers: bookingIds.length,
+                  selectedSeats: selectedSeatDetails.map(s => ({ row: s.row, column: s.column })),
+                  seatPriceModifier: avgNewModifier,
+                  isRoundTrip: false,
+                  isSeatChange: true, // Flag to indicate this is a seat change
+                  bookingIds, // Original booking IDs to update
+                  oldSeatNumbers: oldSeats,
+                  newSeatNumbers: newSeats,
+                  priceDifference,
+                  passengerData: [], // Empty - not needed for seat change
+                });
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Update each booking with its new seat (price same or lower, no payment needed)
+        for (let i = 0; i < bookingIds.length && i < newSeats.length; i++) {
+          await bookingAPI.changeSeat(bookingIds[i], {
+            seat_number: newSeats[i],
+          });
+        }
+        
+        const priceMessage = priceDifference < -0.01 
+          ? ` You saved $${Math.abs(priceDifference).toFixed(2)}!`
+          : '';
+        
+        Alert.alert(
+          'Success', 
+          `Seats changed to: ${newSeats.join(', ')}.${priceMessage}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate back to My Trips tab
+                navigation.navigate('Tabs', { 
+                  screen: 'BookingsTab' 
+                } as never);
+              },
+            },
+          ]
+        );
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || 
+                           error.message || 
+                           'Failed to change seats. Please try again.';
+        Alert.alert('Error', errorMessage);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    } else if (bookingId && currentSeatNumber) {
+      // Single passenger seat change (legacy path)
       const newSeatNumber = selectedSeats[0];
       
       // Check if seat actually changed
@@ -159,17 +253,60 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
         return;
       }
 
+      // Calculate price difference
+      const oldSeatModifier = currentSeatClass || 1.0;
+      const newSeatModifier = firstSeatModifier;
+      const basePrice = currentFlight.price || currentFlight.base_price || 0;
+      const oldPrice = basePrice * oldSeatModifier;
+      const newPrice = basePrice * newSeatModifier;
+      const priceDifference = newPrice - oldPrice;
+      
+      // If price increased, require payment
+      if (priceDifference > 0.01) {
+        Alert.alert(
+          'Seat Upgrade',
+          `The new seat will cost $${priceDifference.toFixed(2)} more. You'll need to complete payment for the upgrade.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Continue to Payment',
+              onPress: () => {
+                // Navigate to payment screen with upgrade info
+                navigation.navigate('Payment', {
+                  flight: currentFlight,
+                  passengers: 1,
+                  selectedSeats: [{ row: selectedSeatDetails[0].row, column: selectedSeatDetails[0].column }],
+                  seatPriceModifier: newSeatModifier,
+                  isRoundTrip: false,
+                  isSeatChange: true,
+                  bookingIds: [bookingId],
+                  oldSeatNumbers: [currentSeatNumber],
+                  newSeatNumbers: [newSeatNumber],
+                  priceDifference,
+                  passengerData: [],
+                });
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       try {
         setLoading(true);
         
-        // Use the dedicated seat change API
+        // Use the dedicated seat change API (price same or lower)
         await bookingAPI.changeSeat(bookingId, {
           seat_number: newSeatNumber,
         });
         
+        const priceMessage = priceDifference < -0.01 
+          ? ` You saved $${Math.abs(priceDifference).toFixed(2)}!`
+          : '';
+        
         Alert.alert(
           'Success', 
-          `Your seat has been changed to ${newSeatNumber}`,
+          `Your seat has been changed to ${newSeatNumber}.${priceMessage}`,
           [
             {
               text: 'OK',
@@ -584,8 +721,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   seatEconomy: {
-    backgroundColor: '#f5f5f5',
-    borderColor: '#d0d0d0',
+    backgroundColor: '#e8f5e9',
+    borderColor: '#a5d6a7',
   },
   seatBusiness: {
     backgroundColor: '#e3f2fd',

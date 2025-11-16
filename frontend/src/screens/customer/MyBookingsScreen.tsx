@@ -69,7 +69,8 @@ const calculateDuration = (departureTimestamp: string, arrivalTimestamp: string)
 };
 
 interface Booking {
-  id: string;
+  id: string; // Primary booking ID (first one in group)
+  bookingIds: string[]; // All booking IDs in this group
   bookingReference: string;
   status: 'confirmed' | 'cancelled' | 'completed';
   flight: {
@@ -82,10 +83,10 @@ interface Booking {
     origin: { code: string; city: string; timezone?: string };
     destination: { code: string; city: string; timezone?: string };
   };
-  seatNumber?: string; // Seat number from booking
+  seatNumbers: string[]; // All seat numbers for this group
   seatClass?: number; // Seat price modifier (1.0, 1.5, 2.0)
-  passengers: number;
-  totalAmount: number;
+  passengers: number; // Number of passengers (group size)
+  totalAmount: number; // Sum of all bookings in group
   bookingDate: string;
 }
 
@@ -129,7 +130,8 @@ export default function MyBookingsScreen() {
         bookingsData = response.data.data;
       }
       
-      const transformedBookings: Booking[] = bookingsData.map((booking: any) => {
+      // First, transform all individual bookings
+      const individualBookings = bookingsData.map((booking: any) => {
         try {
           const departureTime = booking.flight?.departure_time ? new Date(booking.flight.departure_time) : null;
           const arrivalTime = booking.flight?.arrival_time ? new Date(booking.flight.arrival_time) : null;
@@ -170,48 +172,96 @@ export default function MyBookingsScreen() {
           const flightDuration = calculateDuration(departureTimestamp, arrivalTimestamp);
           
           return {
-            id: String(booking.booking_id || booking.id || ''),
-            bookingReference: booking.confirmation_code || `FP${String(booking.booking_id || booking.id || '').padStart(8, '0')}`,
+            bookingId: String(booking.booking_id || booking.id || ''),
+            confirmationCode: booking.confirmation_code || `FP${String(booking.booking_id || booking.id || '').padStart(8, '0')}`,
             status: booking.status === 'cancelled' ? 'cancelled' : 
                    isPast ? 'completed' : 'confirmed',
-            flight: {
-              id: booking.flight?.flight_id || booking.flight_id,  // Add flight ID for API fetch
-              flight_id: booking.flight?.flight_id || booking.flight_id,  // Add flight_id for compatibility
-              flightNumber: airlineCode + String(booking.flight?.flight_id || booking.flight_id || ''),
-              airline: { name: airlineName },
-              departureTime: formattedDepartureTime,
-              arrivalTime: formattedArrivalTime,
-              departure_time: departureTimestamp,
-              arrival_time: arrivalTimestamp,
-              departureDate: departureTimestamp ? departureTimestamp.split('T')[0] : '', // Add date in YYYY-MM-DD format
-              duration: flightDuration, // Calculated from timestamps
-              price: parseFloat(booking.total_price || booking.totalAmount || '0'), // Add price for compatibility
-              origin: { 
-                code: originCode, 
-                city: originCity,
-                name: originAirportName, // Use airport name, not city name
-                timezone: booking.flight?.route?.origin_airport?.city?.timezone || getAirportTimezone(originCode)
-              },
-              destination: { 
-                code: destCode, 
-                city: destCity,
-                name: destAirportName, // Use airport name, not city name
-                timezone: booking.flight?.route?.destination_airport?.city?.timezone || getAirportTimezone(destCode)
-              },
-            },
-            seatNumber, // Add seat number from booking
-            seatClass: seatPriceModifier, // Add seat price modifier for class restriction
-            passengers: 1, // API doesn't return passenger count, default to 1
-            totalAmount: parseFloat(booking.total_price || booking.totalAmount || '0'),
-            bookingDate: booking.booking_time ? new Date(booking.booking_time).toISOString().split('T')[0] : 
-                        booking.createdAt ? new Date(booking.createdAt).toISOString().split('T')[0] : 
-                        new Date().toISOString().split('T')[0],
+            flightId: booking.flight?.flight_id || booking.flight_id,
+            airlineCode,
+            airlineName,
+            originCode,
+            originCity,
+            originAirportName,
+            destCode,
+            destCity,
+            destAirportName,
+            departureTimestamp,
+            arrivalTimestamp,
+            formattedDepartureTime,
+            formattedArrivalTime,
+            flightDuration,
+            seatNumber,
+            seatPriceModifier,
+            totalPrice: parseFloat(booking.total_price || booking.totalAmount || '0'),
+            bookingTime: booking.booking_time ? new Date(booking.booking_time).getTime() : Date.now(),
+            originTimezone: booking.flight?.route?.origin_airport?.city?.timezone || getAirportTimezone(originCode),
+            destTimezone: booking.flight?.route?.destination_airport?.city?.timezone || getAirportTimezone(destCode),
           };
         } catch (transformError) {
           console.error('Error transforming booking:', booking, transformError);
           return null;
         }
-      }).filter((booking): booking is Booking => booking !== null);
+      }).filter((b: any): b is NonNullable<typeof b> => b !== null);
+      
+      // Group bookings by flight_id and booking_time (same flight + booked together = group)
+      const groupedMap = new Map<string, typeof individualBookings>();
+      individualBookings.forEach(booking => {
+        // Group key: flightId + booking time rounded to nearest minute
+        const bookingTimeKey = Math.floor(booking.bookingTime / 60000); // Round to minute
+        const groupKey = `${booking.flightId}_${bookingTimeKey}`;
+        
+        if (!groupedMap.has(groupKey)) {
+          groupedMap.set(groupKey, []);
+        }
+        groupedMap.get(groupKey)!.push(booking);
+      });
+      
+      // Transform grouped bookings into final Booking interface
+      const transformedBookings: Booking[] = Array.from(groupedMap.values()).map(group => {
+        // Use first booking as the base
+        const first = group[0];
+        const allBookingIds = group.map(b => b.bookingId);
+        const allSeatNumbers = group.map(b => b.seatNumber).filter(Boolean);
+        const totalAmount = group.reduce((sum, b) => sum + b.totalPrice, 0);
+        
+        return {
+          id: first.bookingId,
+          bookingIds: allBookingIds,
+          bookingReference: first.confirmationCode,
+          status: first.status,
+          flight: {
+            id: first.flightId,
+            flight_id: first.flightId,
+            flightNumber: first.airlineCode + String(first.flightId),
+            airline: { name: first.airlineName },
+            departureTime: first.formattedDepartureTime,
+            arrivalTime: first.formattedArrivalTime,
+            departure_time: first.departureTimestamp,
+            arrival_time: first.arrivalTimestamp,
+            departureDate: first.departureTimestamp ? first.departureTimestamp.split('T')[0] : '',
+            duration: first.flightDuration,
+            price: first.totalPrice,
+            origin: { 
+              code: first.originCode, 
+              city: first.originCity,
+              name: first.originAirportName,
+              timezone: first.originTimezone
+            },
+            destination: { 
+              code: first.destCode, 
+              city: first.destCity,
+              name: first.destAirportName,
+              timezone: first.destTimezone
+            },
+          },
+          seatNumbers: allSeatNumbers,
+          seatClass: first.seatPriceModifier,
+          passengers: group.length, // Number of bookings = number of passengers
+          totalAmount,
+          bookingDate: first.departureTimestamp ? first.departureTimestamp.split('T')[0] : 
+                      new Date().toISOString().split('T')[0],
+        };
+      });
       
       setBookings(transformedBookings);
       setLoading(false);
@@ -235,38 +285,20 @@ export default function MyBookingsScreen() {
   };
 
   const handleViewDetails = async (booking: Booking) => {
-    try {
-      // Fetch fresh booking details from API
-      const response = await bookingAPI.getById(booking.id);
-      const bookingData = response.data?.data || response.data;
-      
-      // Extract seat information
-      const seatNumber = bookingData.seat_number || booking.seatNumber;
-      const seatPriceModifier = bookingData.seat?.price_modifier 
-        ? parseFloat(bookingData.seat.price_modifier) 
-        : booking.seatClass || 1.0;
-      
-      // Navigate to booking details with fresh data
-      navigation.navigate('BookingDetails', {
-        booking: {
-          ...booking,
-          seatNumber,
-          seatClass: seatPriceModifier,
-        },
-      } as never);
-    } catch (error: any) {
-      console.error('Error fetching booking details:', error);
-      // If API fails, fallback to cached data
-      navigation.navigate('BookingDetails', {
-        booking,
-      } as never);
-    }
+    // Navigate with the full grouped booking data
+    navigation.navigate('BookingDetails', {
+      booking,
+    } as never);
   };
 
   const handleCancelBooking = (booking: Booking) => {
+    const passengerText = booking.passengers > 1 
+      ? `all ${booking.passengers} passengers` 
+      : '1 passenger';
+    
     Alert.alert(
       'Cancel Booking',
-      `Are you sure you want to cancel booking ${booking.bookingReference}?`,
+      `Are you sure you want to cancel this booking for ${passengerText}? This will cancel all ${booking.bookingIds.length} booking record(s).`,
       [
         { text: 'No', style: 'cancel' },
         {
@@ -274,7 +306,9 @@ export default function MyBookingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await bookingAPI.cancel(booking.id);
+              // Cancel all bookings in the group
+              const cancelPromises = booking.bookingIds.map(id => bookingAPI.cancel(id));
+              await Promise.all(cancelPromises);
               Alert.alert('Success', 'Booking cancelled successfully');
               loadBookings();
             } catch (error: any) {
@@ -319,19 +353,19 @@ export default function MyBookingsScreen() {
 
         {/* Flight Info */}
         <View style={styles.flightInfo}>
-          <View style={styles.flightRoute}>
-            <View style={styles.flightPoint}>
+        <View style={styles.flightRoute}>
+          <View style={[styles.flightPoint, styles.flightPointLeft]}>
               <Text style={styles.flightCode}>{booking.flight.origin.code}</Text>
               <Text style={styles.flightCity}>{booking.flight.origin.city}</Text>
               <Text style={styles.flightTime}>{booking.flight.departureTime}</Text>
             </View>
 
-            <View style={styles.flightMiddle}>
-              <Ionicons name="arrow-forward" size={24} color={colors.primary} />
-              <Text style={styles.flightNumber}>{booking.flight.flightNumber}</Text>
-            </View>
+          <View style={styles.flightMiddle}>
+            <Ionicons name="arrow-forward" size={24} color={colors.primary} />
+            <Text style={styles.flightNumber}>{booking.flight.flightNumber}</Text>
+          </View>
 
-            <View style={styles.flightPoint}>
+          <View style={[styles.flightPoint, styles.flightPointRight]}>
               <Text style={styles.flightCode}>{booking.flight.destination.code}</Text>
               <Text style={styles.flightCity}>{booking.flight.destination.city}</Text>
               <Text style={styles.flightTime}>{booking.flight.arrivalTime}</Text>
@@ -584,9 +618,17 @@ const styles = StyleSheet.create({
   flightRoute: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   flightPoint: {
     flex: 1,
+    alignItems: 'flex-start',
+  },
+  flightPointLeft: {
+    alignItems: 'flex-start',
+  },
+  flightPointRight: {
+    alignItems: 'flex-end',
   },
   flightCode: {
     ...typography.h3,
@@ -605,12 +647,15 @@ const styles = StyleSheet.create({
   },
   flightMiddle: {
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    flex: 0.6,
   },
   flightNumber: {
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: spacing.xs,
+    textAlign: 'center',
   },
   bookingDetails: {
     flexDirection: 'row',

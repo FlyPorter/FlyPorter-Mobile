@@ -28,7 +28,12 @@ export default function PaymentScreen({ route, navigation }: any) {
     outboundSeatModifier,
     returnSeatModifier,
     passengerData, 
-    isRoundTrip 
+    isRoundTrip,
+    isSeatChange, // Flag for seat change upgrades
+    bookingIds, // Existing booking IDs to update
+    oldSeatNumbers, // Old seats
+    newSeatNumbers, // New seats
+    priceDifference, // Price difference for upgrade
   } = route.params;
   const { isAuthenticated } = useAuth();
   
@@ -39,9 +44,12 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [processing, setProcessing] = useState(false);
 
   // Backend formula: base_price × price_modifier
+  // For seat changes, only charge the difference
   // For round-trip: (outbound_price × outbound_modifier) + (return_price × return_modifier)
   // Each leg has its own seat class multiplier
-  const totalAmount = isRoundTrip && outboundFlight && returnFlight
+  const totalAmount = isSeatChange 
+    ? priceDifference // Only charge the upgrade difference
+    : isRoundTrip && outboundFlight && returnFlight
     ? (
         (outboundFlight.price * passengers * (outboundSeatModifier || 1.0)) +
         (returnFlight.price * passengers * (returnSeatModifier || 1.0))
@@ -151,62 +159,106 @@ export default function PaymentScreen({ route, navigation }: any) {
         throw new Error('Payment validation failed. Please check your card details.');
       }
 
-      // Create booking for each passenger/seat
-      // For now, create booking for the first passenger/seat
-      // In a real app, you'd create multiple bookings for multiple passengers
-      const firstSeat = selectedSeats[0];
-      const seatNumber = `${firstSeat.row}${firstSeat.column}`;
+      // Handle seat change upgrades
+      if (isSeatChange && bookingIds && bookingIds.length > 0) {
+        // Update existing bookings with new seats
+        for (let i = 0; i < bookingIds.length && i < newSeatNumbers.length; i++) {
+          await bookingAPI.changeSeat(bookingIds[i], {
+            seat_number: newSeatNumbers[i],
+          });
+        }
+        
+        setProcessing(false);
+        
+        Alert.alert(
+          'Upgrade Complete', 
+          `Your seat${bookingIds.length > 1 ? 's have' : ' has'} been upgraded to: ${newSeatNumbers.join(', ')}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate back to My Trips tab
+                navigation.navigate('Tabs', { 
+                  screen: 'BookingsTab' 
+                } as never);
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // Create booking for each passenger/seat (new bookings)
+      // Each booking is one passenger + one seat
+      const createdBookingIds: string[] = [];
+      const returnBookingIds: string[] = [];
       
       // Get flight_id from flight object
-      // flight.id is String(flight.flight_id) from FlightResultsScreen
       const flightId = flight.flight_id || (flight.id ? parseInt(String(flight.id)) : null);
       
       if (!flightId) {
         throw new Error('Flight ID is missing');
       }
       
-      // Create outbound booking
-      const bookingResponse = await bookingAPI.create({
-        flight_id: typeof flightId === 'string' ? parseInt(flightId) : flightId,
-        seat_number: seatNumber,
-      });
+      // Create outbound bookings (one per passenger/seat)
+      for (let i = 0; i < selectedSeats.length; i++) {
+        const seat = selectedSeats[i];
+        const seatNumber = `${seat.row}${seat.column}`;
+        
+        const bookingResponse = await bookingAPI.create({
+          flight_id: typeof flightId === 'string' ? parseInt(flightId) : flightId,
+          seat_number: seatNumber,
+        });
 
-      const bookingResponseData = bookingResponse.data;
-      // Check if response has success field
-      if (bookingResponseData?.success === false) {
-        throw new Error(bookingResponseData?.error || bookingResponseData?.message || 'Booking creation failed');
+        const bookingResponseData = bookingResponse.data;
+        // Check if response has success field
+        if (bookingResponseData?.success === false) {
+          throw new Error(bookingResponseData?.error || bookingResponseData?.message || 'Booking creation failed');
+        }
+        
+        const booking = bookingResponseData?.data || bookingResponseData;
+        const bookingId = booking?.confirmation_code || booking?.booking_id || `FP${Date.now().toString().slice(-8)}`;
+        bookingIds.push(bookingId);
       }
-      
-      const booking = bookingResponseData?.data || bookingResponseData;
-      const bookingId = booking?.confirmation_code || booking?.booking_id || `FP${Date.now().toString().slice(-8)}`;
 
-      // If round-trip, create return booking as well
-      let returnBookingId = null;
+      // If round-trip, create return bookings (one per passenger/seat)
       if (isRoundTrip && returnSelectedSeats && returnSelectedSeats.length > 0) {
         const returnFlight = route.params.returnFlight;
-        const returnFirstSeat = returnSelectedSeats[0];
-        const returnSeatNumber = `${returnFirstSeat.row}${returnFirstSeat.column}`;
         const returnFlightId = returnFlight.flight_id || (returnFlight.id ? parseInt(String(returnFlight.id)) : null);
         
         if (returnFlightId) {
-          const returnBookingResponse = await bookingAPI.create({
-            flight_id: typeof returnFlightId === 'string' ? parseInt(returnFlightId) : returnFlightId,
-            seat_number: returnSeatNumber,
-          });
-          
-          const returnBookingData = returnBookingResponse.data;
-          if (returnBookingData?.success !== false) {
-            const returnBooking = returnBookingData?.data || returnBookingData;
-            returnBookingId = returnBooking?.confirmation_code || returnBooking?.booking_id;
+          for (let i = 0; i < returnSelectedSeats.length; i++) {
+            const seat = returnSelectedSeats[i];
+            const returnSeatNumber = `${seat.row}${seat.column}`;
+            
+            const returnBookingResponse = await bookingAPI.create({
+              flight_id: typeof returnFlightId === 'string' ? parseInt(returnFlightId) : returnFlightId,
+              seat_number: returnSeatNumber,
+            });
+            
+            const returnBookingData = returnBookingResponse.data;
+            if (returnBookingData?.success !== false) {
+              const returnBooking = returnBookingData?.data || returnBookingData;
+              const returnBookingId = returnBooking?.confirmation_code || returnBooking?.booking_id;
+              if (returnBookingId) {
+                returnBookingIds.push(returnBookingId);
+              }
+            }
           }
         }
       }
       
       setProcessing(false);
       
+      // Use the first booking ID as the primary one for navigation
+      const primaryBookingId = bookingIds[0];
+      const primaryReturnBookingId = returnBookingIds.length > 0 ? returnBookingIds[0] : null;
+      
       navigation.replace('BookingConfirmation', {
-        bookingId,
-        returnBookingId, // Pass return booking ID if applicable
+        bookingId: primaryBookingId,
+        bookingIds, // Pass all booking IDs
+        returnBookingId: primaryReturnBookingId,
+        returnBookingIds, // Pass all return booking IDs if applicable
         flight,
         outboundFlight, // Pass outbound flight for round-trip
         returnFlight, // Pass return flight for round-trip
@@ -390,27 +442,21 @@ export default function PaymentScreen({ route, navigation }: any) {
                 )}
 
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Outbound Fare</Text>
+                  <Text style={styles.summaryLabel}>
+                    Outbound ({passengers} passenger{passengers > 1 ? 's' : ''})
+                  </Text>
                   <Text style={styles.summaryValue}>
-                    ${(outboundFlight.price * passengers).toFixed(2)}
+                    ${(outboundFlight.price * passengers * (outboundSeatModifier || 1.0)).toFixed(2)}
                   </Text>
                 </View>
 
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Outbound Seat Multiplier</Text>
-                  <Text style={styles.summaryValue}>×{(outboundSeatModifier || 1.0).toFixed(1)}</Text>
-                </View>
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Return Fare</Text>
-                  <Text style={styles.summaryValue}>
-                    ${(returnFlight.price * passengers).toFixed(2)}
+                  <Text style={styles.summaryLabel}>
+                    Return ({passengers} passenger{passengers > 1 ? 's' : ''})
                   </Text>
-                </View>
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Return Seat Multiplier</Text>
-                  <Text style={styles.summaryValue}>×{(returnSeatModifier || 1.0).toFixed(1)}</Text>
+                  <Text style={styles.summaryValue}>
+                    ${(returnFlight.price * passengers * (returnSeatModifier || 1.0)).toFixed(2)}
+                  </Text>
                 </View>
 
                 <View style={styles.divider} />
@@ -448,15 +494,12 @@ export default function PaymentScreen({ route, navigation }: any) {
                 </View>
 
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Base Fare</Text>
-                  <Text style={styles.summaryValue}>
-                    ${(flight.price * passengers).toFixed(2)}
+                  <Text style={styles.summaryLabel}>
+                    Fare ({passengers} passenger{passengers > 1 ? 's' : ''})
                   </Text>
-                </View>
-
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Seat Class Multiplier</Text>
-                  <Text style={styles.summaryValue}>×{(seatPriceModifier || 1.0).toFixed(1)}</Text>
+                  <Text style={styles.summaryValue}>
+                    ${((flight.price * passengers) * (seatPriceModifier || 1.0)).toFixed(2)}
+                  </Text>
                 </View>
 
                 <View style={styles.divider} />

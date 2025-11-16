@@ -44,6 +44,47 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
     }))
   );
 
+  const passengersLabel = `${passengers} ${passengers === 1 ? 'passenger' : 'passengers'}`;
+
+  const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
+
+  const getSeatClassLabel = (modifier?: number) => {
+    if (!modifier || modifier < 1.05) return 'Economy';
+    if (modifier >= 1.95) return 'First Class';
+    return 'Business Class';
+  };
+
+  const formatSeatAdjustment = (seatAdjustment: number) => {
+    if (Math.abs(seatAdjustment) < 0.01) {
+      return '';
+    }
+    const sign = seatAdjustment > 0 ? '+' : '-';
+    return ` (${sign}${formatCurrency(Math.abs(seatAdjustment))})`;
+  };
+
+  const summarizeSegment = (pricePerPassenger?: number, seatModifier?: number) => {
+    const perPassenger = Number(pricePerPassenger ?? 0);
+    const modifier = seatModifier ?? 1;
+    const base = perPassenger * passengers;
+    const total = base * modifier;
+    const seatAdjustment = total - base;
+    return {
+      perPassenger,
+      base,
+      total,
+      seatAdjustment,
+      seatClass: getSeatClassLabel(modifier),
+    };
+  };
+
+  const outboundSummary = outboundFlight
+    ? summarizeSegment(outboundFlight.price, outboundSeatModifier)
+    : null;
+  const returnSummary = returnFlight
+    ? summarizeSegment(returnFlight.price, returnSeatModifier)
+    : null;
+  const oneWaySummary = flight ? summarizeSegment(flight.price, seatPriceModifier) : null;
+
   const updatePassenger = (index: number, field: keyof PassengerInfo, value: string) => {
     const updated = [...passengerData];
     updated[index][field] = value;
@@ -173,39 +214,39 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
           {isRoundTrip && outboundFlight && returnFlight ? (
             // Round-trip pricing
             <>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>
-                  Outbound Flight ({passengers} × ${outboundFlight.price})
-                </Text>
+              <View style={styles.summaryRowStack}>
+                <View style={styles.summaryDetails}>
+                  <Text style={styles.summaryLabel}>
+                    Outbound Flight ({passengersLabel})
+                  </Text>
+                  <Text style={styles.summarySubtext}>
+                    Base fare {formatCurrency(outboundSummary?.perPassenger || 0)} per passenger
+                  </Text>
+                  <Text style={styles.summarySubtext}>
+                    Seat class: {outboundSummary?.seatClass || 'Economy'}
+                    {outboundSummary ? formatSeatAdjustment(outboundSummary.seatAdjustment) : ''}
+                  </Text>
+                </View>
                 <Text style={styles.summaryValue}>
-                  ${(outboundFlight.price * passengers).toFixed(2)}
+                  {formatCurrency(outboundSummary?.total || 0)}
                 </Text>
               </View>
 
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>
-                  Outbound Seat Multiplier
-                </Text>
+              <View style={styles.summaryRowStack}>
+                <View style={styles.summaryDetails}>
+                  <Text style={styles.summaryLabel}>
+                    Return Flight ({passengersLabel})
+                  </Text>
+                  <Text style={styles.summarySubtext}>
+                    Base fare {formatCurrency(returnSummary?.perPassenger || 0)} per passenger
+                  </Text>
+                  <Text style={styles.summarySubtext}>
+                    Seat class: {returnSummary?.seatClass || 'Economy'}
+                    {returnSummary ? formatSeatAdjustment(returnSummary.seatAdjustment) : ''}
+                  </Text>
+                </View>
                 <Text style={styles.summaryValue}>
-                  ×{(outboundSeatModifier || 1.0).toFixed(1)}
-                </Text>
-              </View>
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>
-                  Return Flight ({passengers} × ${returnFlight.price})
-                </Text>
-                <Text style={styles.summaryValue}>
-                  ${(returnFlight.price * passengers).toFixed(2)}
-                </Text>
-              </View>
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>
-                  Return Seat Multiplier
-                </Text>
-                <Text style={styles.summaryValue}>
-                  ×{(returnSeatModifier || 1.0).toFixed(1)}
+                  {formatCurrency(returnSummary?.total || 0)}
                 </Text>
               </View>
 
@@ -214,28 +255,31 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
               <View style={styles.summaryRow}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalValue}>
-                  ${(
-                    (outboundFlight.price * passengers * (outboundSeatModifier || 1.0)) +
-                    (returnFlight.price * passengers * (returnSeatModifier || 1.0))
-                  ).toFixed(2)}
+                  {formatCurrency(
+                    (outboundSummary?.total || 0) + (returnSummary?.total || 0)
+                  )}
                 </Text>
               </View>
             </>
           ) : (
             // One-way pricing
             <>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>
-                  Flight ({passengers} × ${flight.price})
-                </Text>
+              <View style={styles.summaryRowStack}>
+                <View style={styles.summaryDetails}>
+                  <Text style={styles.summaryLabel}>
+                    Flight ({passengersLabel})
+                  </Text>
+                  <Text style={styles.summarySubtext}>
+                    Base fare {formatCurrency(oneWaySummary?.perPassenger || 0)} per passenger
+                  </Text>
+                  <Text style={styles.summarySubtext}>
+                    Seat class: {oneWaySummary?.seatClass || 'Economy'}
+                    {oneWaySummary ? formatSeatAdjustment(oneWaySummary.seatAdjustment) : ''}
+                  </Text>
+                </View>
                 <Text style={styles.summaryValue}>
-                  ${(flight.price * passengers).toFixed(2)}
+                  {formatCurrency(oneWaySummary?.total || 0)}
                 </Text>
-              </View>
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Seat Class Multiplier</Text>
-                <Text style={styles.summaryValue}>×{(seatPriceModifier || 1.0).toFixed(1)}</Text>
               </View>
 
               <View style={styles.divider} />
@@ -243,7 +287,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
               <View style={styles.summaryRow}>
                 <Text style={styles.totalLabel}>Total</Text>
                 <Text style={styles.totalValue}>
-                  ${((flight.price * passengers) * (seatPriceModifier || 1.0)).toFixed(2)}
+                  {formatCurrency(oneWaySummary?.total || 0)}
                 </Text>
               </View>
             </>
@@ -361,10 +405,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginVertical: spacing.xs,
+    alignItems: 'center',
+  },
+  summaryRowStack: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: spacing.sm,
+    gap: spacing.md,
+    alignItems: 'flex-start',
+  },
+  summaryDetails: {
+    flex: 1,
   },
   summaryLabel: {
     ...typography.body2,
     color: colors.textSecondary,
+  },
+  summarySubtext: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   summaryValue: {
     ...typography.body2,
