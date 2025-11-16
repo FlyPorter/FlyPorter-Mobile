@@ -6,7 +6,12 @@ export type RootStackParamList = {
 };
 
 export type AuthStackParamList = {
-  FlightSearch: undefined;
+  FlightSearch: {
+    selectedAirport?: {
+      type: 'departure' | 'arrival';
+      value: string;
+    };
+  } | undefined;
   FlightResults: {
     origin: string;
     destination: string;
@@ -72,13 +77,23 @@ export type AdminTabParamList = {
 };
 
 export type SearchStackParamList = {
-  Search: undefined;
+  Search: {
+    selectedAirport?: {
+      type: 'departure' | 'arrival';
+      value: string;
+    };
+  } | undefined;
   Results: {
     origin: string;
     destination: string;
     departDate: string;
     returnDate?: string;
     passengers: number;
+  };
+  AirportPicker: {
+    type: 'departure' | 'arrival';
+    currentValue?: string;
+    onSelect?: (value: string) => void;
   };
 };
 

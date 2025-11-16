@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Pressable,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -26,6 +27,8 @@ interface AirportAutocompleteProps {
   style?: any;
   compact?: boolean;
   alignSuggestions?: 'left' | 'right';
+  compactPlaceholderElement?: React.ReactNode;
+  onOpenPicker?: () => void;
 }
 
 export default function AirportAutocomplete({
@@ -36,6 +39,8 @@ export default function AirportAutocomplete({
   style,
   compact = false,
   alignSuggestions = 'left',
+  compactPlaceholderElement,
+  onOpenPicker,
 }: AirportAutocompleteProps) {
   const [airports, setAirports] = useState<Airport[]>([]);
   const [filteredAirports, setFilteredAirports] = useState<Airport[]>([]);
@@ -43,6 +48,7 @@ export default function AirportAutocomplete({
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const isSelectingRef = useRef(false);
 
   // Check if the current value matches an airport format
   const isAirportFormat = (text: string) => {
@@ -78,11 +84,26 @@ export default function AirportAutocomplete({
   };
 
   const handleSelectAirport = (airport: Airport) => {
+    // Set flag immediately
+    isSelectingRef.current = true;
+    
+    // Update the value
     const displayText = `${airport.city_name} (${airport.airport_code})`;
     onChange(displayText);
+    
+    // Hide suggestions and blur input
     setShowSuggestions(false);
     setIsEditing(false);
-    inputRef.current?.blur();
+    
+    // Blur the input after a tiny delay to ensure state updates first
+    setTimeout(() => {
+      inputRef.current?.blur();
+    }, 50);
+    
+    // Reset the flag after selection is complete
+    setTimeout(() => {
+      isSelectingRef.current = false;
+    }, 500);
   };
 
   const parseValue = (val: string) => {
@@ -151,9 +172,18 @@ export default function AirportAutocomplete({
   }, [value, airports, isEditing]);
 
   const renderSuggestion = ({ item }: { item: Airport }) => (
-    <TouchableOpacity
-      style={styles.suggestionItem}
-      onPress={() => handleSelectAirport(item)}
+    <Pressable
+      style={({ pressed }) => [
+        styles.suggestionItem,
+        pressed && styles.suggestionItemPressed
+      ]}
+      onPressIn={() => {
+        // Use onPressIn for immediate response on physical devices
+        isSelectingRef.current = true;
+      }}
+      onPress={() => {
+        handleSelectAirport(item);
+      }}
     >
       <View style={styles.suggestionContent}>
         <View style={styles.suggestionHeader}>
@@ -168,10 +198,21 @@ export default function AirportAutocomplete({
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   const { code, city } = parseValue(value);
+
+  const handleCompactPress = () => {
+    if (onOpenPicker) {
+      onOpenPicker();
+      return;
+    }
+    setIsEditing(true);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+  };
 
   return (
     <View style={[styles.container, compact && styles.compactContainer, style]}>
@@ -179,43 +220,34 @@ export default function AirportAutocomplete({
       {compact && !isEditing && (!value || !isAirportFormat(value)) ? (
         <TouchableOpacity
           style={styles.compactDisplay}
-          onPress={() => {
-            setIsEditing(true);
-            setTimeout(() => {
-              inputRef.current?.focus();
-            }, 50);
-          }}
+          onPress={handleCompactPress}
           activeOpacity={0.7}
         >
-          <Text style={styles.compactPlaceholderLine1}>
-            {placeholder.split(' ')[0]}
-          </Text>
-          <Text style={styles.compactPlaceholderLine2}>
-            {placeholder.split(' ').slice(1).join(' ')}
-          </Text>
+          <View style={styles.compactPlaceholderWrapper}>
+            {compactPlaceholderElement ? (
+              compactPlaceholderElement
+            ) : (
+              <Text style={styles.compactPlaceholder}>{placeholder}</Text>
+            )}
+          </View>
         </TouchableOpacity>
       ) : compact && value && !isEditing && isAirportFormat(value) ? (
         <TouchableOpacity
           style={styles.compactDisplay}
-          onPress={() => {
-            setIsEditing(true);
-            // Don't clear value, just allow editing
-            // Focus input after a short delay
-            setTimeout(() => {
-              inputRef.current?.focus();
-            }, 50);
-          }}
+          onPress={handleCompactPress}
           activeOpacity={0.7}
         >
-          <Text style={styles.compactCode}>{code}</Text>
-          <Text style={styles.compactCity}>{city}</Text>
+          <Text style={styles.compactCode}>{code || placeholder}</Text>
+          {city ? (
+            <Text style={styles.compactCity}>{city}</Text>
+          ) : null}
         </TouchableOpacity>
       ) : (
         <View style={styles.inputContainer}>
           <TextInput
             ref={inputRef}
             style={[styles.input, compact && styles.compactInput]}
-            placeholder={compact ? placeholder.replace(' ', '\n') : placeholder}
+            placeholder={placeholder}
             placeholderTextColor={colors.textSecondary}
             value={value}
             onChangeText={(text) => {
@@ -228,18 +260,25 @@ export default function AirportAutocomplete({
             numberOfLines={compact ? 2 : 1}
             onFocus={() => {
               setIsEditing(true);
-              // Always show suggestions when focused (useEffect will handle the logic)
-              // This allows users to see suggestions even when input is empty
+              // If a previous airport was selected, clear it so user can immediately search again
+              if (isAirportFormat(value)) {
+                onChange('');
+              }
+              // Suggestions will be managed by useEffect once text changes
             }}
             onBlur={() => {
               // Delay hiding suggestions to allow onPress to fire
               setTimeout(() => {
+                // Don't hide if we're in the middle of selecting
+                if (isSelectingRef.current) {
+                  return;
+                }
                 // Only hide editing state if value is in correct format or empty
                 if (isAirportFormat(value) || !value.trim()) {
                   setIsEditing(false);
                 }
                 setShowSuggestions(false);
-              }, 200);
+              }, 300);
             }}
           />
         </View>
@@ -251,11 +290,14 @@ export default function AirportAutocomplete({
       ) : null}
 
       {showSuggestions && filteredAirports.length > 0 && (
-        <View style={[
-          styles.suggestionsContainer,
-          alignSuggestions === 'right' ? styles.suggestionsContainerRight : styles.suggestionsContainerLeft
-        ]}>
-          <View style={styles.suggestionsList}>
+        <View 
+          style={[
+            styles.suggestionsContainer,
+            alignSuggestions === 'right' ? styles.suggestionsContainerRight : styles.suggestionsContainerLeft
+          ]}
+          pointerEvents="box-none"
+        >
+          <View style={styles.suggestionsList} pointerEvents="auto">
             {filteredAirports.map((item) => (
               <View key={item.airport_code}>
                 {renderSuggestion({ item })}
@@ -281,28 +323,31 @@ const styles = StyleSheet.create({
   compactDisplay: {
     flex: 1,
     padding: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   compactCode: {
-    ...typography.h3,
+    fontSize: 32,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 2,
+    textAlign: 'center',
   },
   compactCity: {
-    ...typography.body2,
+    ...typography.body1,
     color: colors.textSecondary,
     flexWrap: 'wrap',
+    textAlign: 'center',
   },
-  compactPlaceholderLine1: {
-    ...typography.body1,
-    fontWeight: '400',
+  compactPlaceholder: {
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.textSecondary,
-    marginBottom: 2,
+    textAlign: 'center',
   },
-  compactPlaceholderLine2: {
-    ...typography.body1,
-    fontWeight: '400',
-    color: colors.textSecondary,
+  compactPlaceholderWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   compactInput: {
     padding: spacing.sm,
@@ -310,6 +355,7 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     backgroundColor: 'transparent',
     textAlignVertical: 'top',
+    textAlign: 'center',
   },
   label: {
     ...typography.body2,
@@ -374,6 +420,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     minWidth: 300,
+    backgroundColor: '#fff',
+  },
+  suggestionItemPressed: {
+    backgroundColor: colors.surface,
   },
   suggestionContent: {
     flex: 1,

@@ -434,41 +434,6 @@ export default function FlightResultsScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Search Summary */}
-      <View style={styles.searchSummary}>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Route:</Text>
-          <View style={styles.routeDisplay}>
-            {returnDate ? (
-              <>
-                <Text style={styles.summaryValue}>{origin}</Text>
-                <Ionicons name="repeat" size={18} color={colors.primary} style={styles.routeIcon} />
-                <Text style={styles.summaryValue}>{destination}</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.summaryValue}>{origin}</Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.textSecondary} style={styles.routeIcon} />
-                <Text style={styles.summaryValue}>{destination}</Text>
-              </>
-            )}
-          </View>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Date:</Text>
-          <Text style={styles.summaryValue}>
-            {returnDate 
-              ? `${formatDate(departDate)} - ${formatDate(returnDate)}`
-              : formatDate(departDate)
-            }
-          </Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Passengers:</Text>
-          <Text style={styles.summaryValue}>{passengers}</Text>
-        </View>
-      </View>
-
       {returnDate ? (
         // Round trip - Split view
         <View style={styles.splitContainer}>
@@ -650,26 +615,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.md,
   },
-  searchSummary: {
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: spacing.xs,
-  },
-  summaryLabel: {
-    ...typography.body2,
-    color: colors.textSecondary,
-  },
-  summaryValue: {
-    ...typography.body2,
-    fontWeight: '600',
-    color: colors.text,
-  },
   content: {
     flex: 1,
   },
@@ -816,14 +761,6 @@ const styles = StyleSheet.create({
     ...typography.body2,
     color: colors.primary,
     fontWeight: '600',
-  },
-  routeDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  routeIcon: {
-    marginHorizontal: spacing.xs,
   },
   infoBanner: {
     flexDirection: 'row',

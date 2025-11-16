@@ -6,6 +6,7 @@ import { colors } from '../theme/theme';
 // Customer screens
 import FlightSearchScreen from '../screens/public/FlightSearchScreen';
 import FlightResultsScreen from '../screens/public/FlightResultsScreen';
+import AirportPickerScreen from '../screens/public/AirportPickerScreen';
 import MyBookingsScreen from '../screens/customer/MyBookingsScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -25,6 +26,14 @@ function SearchStackNavigator() {
         name="FlightResults" 
         component={FlightResultsScreen}
         options={{ title: 'Available Flights' }}
+      />
+      <SearchStack.Screen
+        name="AirportPicker"
+        component={AirportPickerScreen}
+        options={{
+          headerShown: false,
+          presentation: 'transparentModal',
+        }}
       />
     </SearchStack.Navigator>
   );

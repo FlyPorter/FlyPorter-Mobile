@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,14 +8,76 @@ import {
   TextInput,
   Platform,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import DatePicker from '../../components/DatePicker';
 import AirportAutocomplete from '../../components/AirportAutocomplete';
+import * as Location from 'expo-location';
 
-export default function FlightSearchScreen({ navigation }: any) {
+const AIRPORT_COORDS = [
+  {
+    code: 'YYZ',
+    city: 'Toronto',
+    name: 'Toronto Pearson International Airport',
+    lat: 43.6777,
+    lon: -79.6248,
+  },
+  {
+    code: 'YVR',
+    city: 'Vancouver',
+    name: 'Vancouver International Airport',
+    lat: 49.1951,
+    lon: -123.1779,
+  },
+  {
+    code: 'YUL',
+    city: 'Montreal',
+    name: 'Montreal-Pierre Elliott Trudeau International Airport',
+    lat: 45.4706,
+    lon: -73.7408,
+  },
+  {
+    code: 'YOW',
+    city: 'Ottawa',
+    name: 'Ottawa Macdonald-Cartier International Airport',
+    lat: 45.3225,
+    lon: -75.6692,
+  },
+];
+
+const toRadians = (deg: number) => (deg * Math.PI) / 180;
+
+const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // km
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const getNearestAirport = (lat: number, lon: number) => {
+  let nearest = null;
+  let minDistance = Infinity;
+
+  for (const airport of AIRPORT_COORDS) {
+    const distance = calculateDistanceKm(lat, lon, airport.lat, airport.lon);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = airport;
+    }
+  }
+
+  return nearest;
+};
+
+export default function FlightSearchScreen({ navigation, route }: any) {
   const { isAuthenticated, user } = useAuth();
   const [tripType, setTripType] = useState<'one-way' | 'round-trip'>('one-way');
   const [origin, setOrigin] = useState('');
@@ -50,6 +112,51 @@ export default function FlightSearchScreen({ navigation }: any) {
     areDifferentAirports() &&
     departDate !== '' &&
     (tripType === 'one-way' || (tripType === 'round-trip' && returnDate !== ''));
+
+  useEffect(() => {
+    const prefillOriginFromLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          return;
+        }
+        const position = await Location.getCurrentPositionAsync({});
+        if (!position || origin) return;
+
+        const nearestAirport = getNearestAirport(
+          position.coords.latitude,
+          position.coords.longitude
+        );
+
+        if (nearestAirport) {
+          setOrigin(`${nearestAirport.city} (${nearestAirport.code})`);
+        }
+      } catch (error) {
+        // silently fail if location not available
+      }
+    };
+
+    prefillOriginFromLocation();
+  }, []);
+
+  useEffect(() => {
+    if (route?.params?.selectedAirport) {
+      const { type, value } = route.params.selectedAirport;
+      if (type === 'departure') {
+        setOrigin(value);
+      } else {
+        setDestination(value);
+      }
+      navigation.setParams({ selectedAirport: undefined });
+    }
+  }, [route?.params?.selectedAirport]);
+
+  const openAirportPicker = (type: 'departure' | 'arrival') => {
+    navigation.navigate('AirportPicker', {
+      type,
+      currentValue: type === 'departure' ? origin : destination,
+    });
+  };
 
   const handleSearch = () => {
     if (!origin || !destination || !departDate) {
@@ -88,6 +195,11 @@ export default function FlightSearchScreen({ navigation }: any) {
   };
 
   return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
     <View style={styles.container}>
       {/* Header with User Info */}
       <View style={styles.header}>
@@ -107,7 +219,11 @@ export default function FlightSearchScreen({ navigation }: any) {
         )}
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: spacing.xxl }}
+      >
         {/* Trip Type Selector */}
         <View style={styles.tripTypeContainer}>
           <TouchableOpacity
@@ -149,11 +265,16 @@ export default function FlightSearchScreen({ navigation }: any) {
           {/* Location Cards - Compact */}
           <View style={styles.locationRow}>
             <View style={styles.locationCard}>
+              <View style={styles.locationLabelRow}>
+                <Ionicons name="airplane-outline" size={18} color={colors.primary} />
+                <Text style={[styles.locationLabel, styles.locationLabelCentered]}>Departure</Text>
+              </View>
               <AirportAutocomplete
                 value={origin}
                 onChange={setOrigin}
-                placeholder="Select origin"
+                placeholder="Departure"
                 compact={true}
+                onOpenPicker={() => openAirportPicker('departure')}
               />
             </View>
 
@@ -162,12 +283,19 @@ export default function FlightSearchScreen({ navigation }: any) {
             </TouchableOpacity>
 
             <View style={styles.locationCard}>
+              <View style={styles.locationLabelRow}>
+                <Text style={[styles.locationLabel, styles.locationLabelArrival, styles.locationLabelCentered]}>Arrival</Text>
+              </View>
               <AirportAutocomplete
                 value={destination}
                 onChange={setDestination}
-                placeholder="Select destination"
+                placeholder="Arrival"
                 compact={true}
                 alignSuggestions="right"
+                compactPlaceholderElement={
+                  <Ionicons name="airplane-sharp" size={28} color={colors.primary} />
+                }
+                onOpenPicker={() => openAirportPicker('arrival')}
               />
             </View>
           </View>
@@ -175,19 +303,19 @@ export default function FlightSearchScreen({ navigation }: any) {
           {/* Date Card - Compact */}
           <View style={styles.dateCard}>
             <View style={styles.dateRowCompact}>
-              <View style={styles.dateSection}>
-                <Ionicons name="calendar" size={16} color={colors.primary} />
-                <View style={styles.dateInfo}>
-                  <Text style={styles.dateLabel}>Depart</Text>
-                  <DatePicker
-                    value={departDate}
-                    onChange={setDepartDate}
-                    placeholder="Select date"
-                    minimumDate={new Date().toISOString().split('T')[0]}
-                    compact={true}
-                  />
-                </View>
+            <View style={styles.dateSection}>
+              <Ionicons name="calendar" size={16} color={colors.primary} />
+              <View style={styles.dateInfo}>
+                <Text style={styles.dateLabel}>Depart</Text>
+                <DatePicker
+                  value={departDate}
+                  onChange={setDepartDate}
+                  placeholder={tripType === 'one-way' ? 'Select departure date' : 'Select dates'}
+                  minimumDate={new Date().toISOString().split('T')[0]}
+                  compact={true}
+                />
               </View>
+            </View>
 
               {tripType === 'round-trip' && (
                 <>
@@ -254,6 +382,7 @@ export default function FlightSearchScreen({ navigation }: any) {
         )}
       </ScrollView>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -353,6 +482,25 @@ const styles = StyleSheet.create({
     minHeight: 70,
     justifyContent: 'center',
     overflow: 'visible',
+  },
+  locationLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  locationLabel: {
+    ...typography.body1,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  locationLabelArrival: {
+    ...typography.body1,
+    fontWeight: '700',
+  },
+  locationLabelCentered: {
+    textAlign: 'center',
+    flex: 1,
   },
   swapButtonCompact: {
     padding: spacing.xs,
