@@ -21,14 +21,6 @@ Backend stack: Express.js + TypeScript + Prisma + PostgreSQL
 
 ## Development Guide
 
-backend:
-
-admin account:
-
-admin@123.com
-
-admin123
-
 ### Database Setup
 
 #### Install PostgreSQL and create the database
@@ -127,7 +119,7 @@ Under `backend` folder:
 
    This creates:
 
-   - Admin user: `admin@123.com` / `admin123`
+   - Admin user
    - Demo customer user with passenger profiles:
      - `customer.one@example.com` / `password123`
      - `customer.two@example.com` / `password123`
