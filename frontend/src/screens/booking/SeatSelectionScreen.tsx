@@ -371,45 +371,67 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
 
   const renderSeat = (seat: Seat) => {
     const status = getSeatStatus(seat);
-    const isAisle = seat.column === 'D'; // Only add gap before column D
+    // Remove right margin from last seat in each group (C and F) for proper centering
+    const isLastInGroup = seat.column === 'C' || seat.column === 'F';
     
-    // Get seat class style based on price_modifier
-    const getSeatClassStyle = () => {
-      if (status === 'occupied') return styles.seatOccupied;
-      if (status === 'selected') return styles.seatSelected;
+    // Get seat class colors based on price_modifier
+    const getSeatColors = () => {
+      if (status === 'occupied') return { main: '#6B7280', dark: '#4B5563' };
+      if (status === 'selected') return { main: '#EF4444', dark: '#DC2626' }; // Red for selected
       
       // Available seats - show class based on price_modifier
       // 1.0 = Economy, 1.5 = Business, 2.0 = First Class
-      if (seat.price_modifier >= 2.0) return styles.seatFirstClass;
-      if (seat.price_modifier > 1.0) return styles.seatBusiness;
-      // All seats with multiplier <= 1.0 are economy
-      return styles.seatEconomy;
+      if (seat.price_modifier >= 2.0) return { main: '#FFA500', dark: '#FF8C00' }; // Orange for First
+      if (seat.price_modifier > 1.0) return { main: '#3B82F6', dark: '#2563EB' }; // Blue for Business
+      // Economy
+      return { main: '#10B981', dark: '#059669' }; // Green for Economy
     };
+
+    const colors = getSeatColors();
 
     return (
       <TouchableOpacity
         key={seat.id}
         style={[
-          styles.seat,
+          styles.seatContainer,
           {
             width: dynamicDimensions.seatSize,
-            height: dynamicDimensions.seatSize,
+            marginRight: isLastInGroup ? 0 : spacing.xs,
           },
-          getSeatClassStyle(),
-          isAisle && styles.seatAfterAisle,
         ]}
         onPress={() => handleSeatSelect(seat.id)}
         disabled={status === 'occupied'}
+        activeOpacity={0.7}
       >
-        <Ionicons
-          name={status === 'occupied' ? 'close' : 'checkmark'}
-          size={dynamicDimensions.iconSize}
-          color={
-            status === 'selected' ? '#fff' :
-            status === 'occupied' ? colors.disabled :
-            colors.textSecondary
-          }
-        />
+        {/* Seat structure */}
+        <View style={styles.seatWrapper}>
+          {/* Main seat body with armrests */}
+          <View style={styles.seatBody}>
+            {/* Left armrest */}
+            <View style={[styles.seatArmrest, { backgroundColor: colors.dark, height: dynamicDimensions.seatSize * 0.85 }]} />
+            
+            {/* Seat cushion */}
+            <View style={[
+              styles.seatCushion,
+              { 
+                backgroundColor: colors.main,
+                height: dynamicDimensions.seatSize * 0.85,
+              }
+            ]}>
+              <Ionicons
+                name={status === 'occupied' ? 'close' : (status === 'selected' ? 'star' : 'remove')}
+                size={dynamicDimensions.iconSize}
+                color={status === 'occupied' ? '#9CA3AF' : '#fff'}
+              />
+            </View>
+            
+            {/* Right armrest */}
+            <View style={[styles.seatArmrest, { backgroundColor: colors.dark, height: dynamicDimensions.seatSize * 0.85 }]} />
+          </View>
+          
+          {/* Bottom base */}
+          <View style={[styles.seatBase, { backgroundColor: colors.dark, height: dynamicDimensions.seatSize * 0.15 }]} />
+        </View>
       </TouchableOpacity>
     );
   };
@@ -515,32 +537,67 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
       {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendSeat, styles.seatEconomy]}>
-            <Ionicons name="checkmark" size={12} color={colors.textSecondary} />
+          <View style={styles.legendSeatContainer}>
+            <View style={styles.legendSeatBody}>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#059669' }]} />
+              <View style={[styles.legendSeatCushion, { backgroundColor: '#10B981' }]}>
+                <Ionicons name="remove" size={10} color="#fff" />
+              </View>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#059669' }]} />
+            </View>
+            <View style={[styles.legendSeatBase, { backgroundColor: '#059669' }]} />
           </View>
           <Text style={styles.legendText}>Economy</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendSeat, styles.seatBusiness]}>
-            <Ionicons name="checkmark" size={12} color={colors.textSecondary} />
+          <View style={styles.legendSeatContainer}>
+            <View style={styles.legendSeatBody}>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#2563EB' }]} />
+              <View style={[styles.legendSeatCushion, { backgroundColor: '#3B82F6' }]}>
+                <Ionicons name="remove" size={10} color="#fff" />
+              </View>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#2563EB' }]} />
+            </View>
+            <View style={[styles.legendSeatBase, { backgroundColor: '#2563EB' }]} />
           </View>
           <Text style={styles.legendText}>Business</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendSeat, styles.seatFirstClass]}>
-            <Ionicons name="checkmark" size={12} color={colors.textSecondary} />
+          <View style={styles.legendSeatContainer}>
+            <View style={styles.legendSeatBody}>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#FF8C00' }]} />
+              <View style={[styles.legendSeatCushion, { backgroundColor: '#FFA500' }]}>
+                <Ionicons name="remove" size={10} color="#fff" />
+              </View>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#FF8C00' }]} />
+            </View>
+            <View style={[styles.legendSeatBase, { backgroundColor: '#FF8C00' }]} />
           </View>
           <Text style={styles.legendText}>First Class</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendSeat, styles.seatSelected]}>
-            <Ionicons name="checkmark" size={12} color="#fff" />
+          <View style={styles.legendSeatContainer}>
+            <View style={styles.legendSeatBody}>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#DC2626' }]} />
+              <View style={[styles.legendSeatCushion, { backgroundColor: '#EF4444' }]}>
+                <Ionicons name="star" size={10} color="#fff" />
+              </View>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#DC2626' }]} />
+            </View>
+            <View style={[styles.legendSeatBase, { backgroundColor: '#DC2626' }]} />
           </View>
           <Text style={styles.legendText}>Selected</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendSeat, styles.seatOccupied]}>
-            <Ionicons name="close" size={12} color={colors.disabled} />
+          <View style={styles.legendSeatContainer}>
+            <View style={styles.legendSeatBody}>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#4B5563' }]} />
+              <View style={[styles.legendSeatCushion, { backgroundColor: '#6B7280' }]}>
+                <Ionicons name="close" size={10} color="#9CA3AF" />
+              </View>
+              <View style={[styles.legendSeatArmrest, { backgroundColor: '#4B5563' }]} />
+            </View>
+            <View style={[styles.legendSeatBase, { backgroundColor: '#4B5563' }]} />
           </View>
           <Text style={styles.legendText}>Occupied</Text>
         </View>
@@ -549,28 +606,34 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
       <ScrollView style={styles.content}>
         {/* Column Labels */}
         <View style={styles.columnLabels}>
-          <View style={styles.rowNumber} />
-          <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize }]}>A</Text>
-          <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize }]}>B</Text>
+          <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize, marginRight: spacing.xs }]}>A</Text>
+          <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize, marginRight: spacing.xs }]}>B</Text>
           <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize }]}>C</Text>
           <View style={styles.aisleSpace} />
-          <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize }]}>D</Text>
-          <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize }]}>E</Text>
+          <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize, marginRight: spacing.xs }]}>D</Text>
+          <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize, marginRight: spacing.xs }]}>E</Text>
           <Text style={[styles.columnLabel, { width: dynamicDimensions.seatSize }]}>F</Text>
         </View>
 
         {/* Seat Map */}
-        {rows.map(row => (
-          <View key={row} style={[styles.row, { marginBottom: dynamicDimensions.rowSpacing }]}>
-            <View style={styles.rowNumber}>
-              <Text style={styles.rowNumberText}>{row}</Text>
+        {rows.map(row => {
+          const rowSeats = seats
+            .filter(s => s.row === row)
+            .sort((a, b) => a.column.localeCompare(b.column));
+          
+          const leftSeats = rowSeats.filter(s => ['A', 'B', 'C'].includes(s.column));
+          const rightSeats = rowSeats.filter(s => ['D', 'E', 'F'].includes(s.column));
+          
+          return (
+            <View key={row} style={[styles.row, { marginBottom: dynamicDimensions.rowSpacing }]}>
+              {leftSeats.map(renderSeat)}
+              <View style={[styles.rowNumber, styles.rowNumberCenter]}>
+                <Text style={styles.rowNumberText}>{row}</Text>
+              </View>
+              {rightSeats.map(renderSeat)}
             </View>
-            {seats
-              .filter(s => s.row === row)
-              .sort((a, b) => a.column.localeCompare(b.column))
-              .map(renderSeat)}
-          </View>
-        ))}
+          );
+        })}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -665,6 +728,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  legendSeatContainer: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  legendSeatBody: {
+    flexDirection: 'row',
+    width: '100%',
+    height: '85%',
+    alignItems: 'flex-end',
+  },
+  legendSeatArmrest: {
+    width: '15%',
+    height: '100%',
+  },
+  legendSeatCushion: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 2,
+  },
+  legendSeatBase: {
+    width: '70%',
+    height: '15%',
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+  },
   legendSeat: {
     width: 24,
     height: 24,
@@ -686,6 +777,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: spacing.sm,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   columnLabel: {
     ...typography.caption,
@@ -694,20 +786,53 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   aisleSpace: {
-    width: spacing.md,
+    width: spacing.xxl, // Larger gap for aisle (48px) to push DEF to the right
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   rowNumber: {
     width: 32,
+    alignItems: 'center',
+  },
+  rowNumberCenter: {
+    width: spacing.xxl, // Same width as aisle space for centering
+    justifyContent: 'center',
     alignItems: 'center',
   },
   rowNumberText: {
     ...typography.caption,
     fontWeight: '600',
     color: colors.textSecondary,
+  },
+  seatContainer: {
+    alignItems: 'center',
+  },
+  seatWrapper: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  seatBody: {
+    flexDirection: 'row',
+    width: '100%',
+    alignItems: 'flex-end',
+  },
+  seatArmrest: {
+    width: '10%',
+    height: '100%',
+  },
+  seatCushion: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 4,
+  },
+  seatBase: {
+    width: '70%',
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
   },
   seat: {
     borderRadius: 6,
@@ -741,7 +866,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   seatAfterAisle: {
-    marginLeft: spacing.md,
+    marginLeft: spacing.xxl, // Larger gap for aisle (48px) to push DEF to the right
   },
   footer: {
     backgroundColor: '#fff',
