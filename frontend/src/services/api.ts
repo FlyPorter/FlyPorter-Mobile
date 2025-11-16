@@ -94,6 +94,9 @@ export const bookingAPI = {
   getById: (id: string) => api.get(`/bookings/${id}`),
   // DELETE /bookings/:id - Cancel booking (requires auth)
   cancel: (id: string) => api.delete(`/bookings/${id}`),
+  // PATCH /bookings/:id/seat - Change seat for existing booking (requires auth)
+  changeSeat: (id: string, data: { seat_number: string }) => 
+    api.patch(`/bookings/${id}/seat`, data),
 };
 
 export const profileAPI = {

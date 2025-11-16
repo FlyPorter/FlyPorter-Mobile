@@ -159,12 +159,8 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
       try {
         setLoading(true);
         
-        // Step 1: Cancel the old booking
-        await bookingAPI.cancel(bookingId);
-        
-        // Step 2: Create a new booking with the new seat
-        const createResponse = await bookingAPI.create({
-          flight_id: flightId,
+        // Use the dedicated seat change API
+        await bookingAPI.changeSeat(bookingId, {
           seat_number: newSeatNumber,
         });
         
