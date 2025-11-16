@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.error('Error loading auth:', error);
+      // Silent fail - user will need to login again
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       const response = await authAPI.login(email, password);
-      console.log('Login response:', JSON.stringify(response.data, null, 2));
       
       // Backend returns { success, data, message } format
       // axios response structure: response.data = { success, data, message }
@@ -64,12 +63,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Extract data - could be responseData.data or responseData directly
       const backendData = responseData?.data || responseData;
-      console.log('Backend data:', JSON.stringify(backendData, null, 2));
       
       const { user: backendUser, token: authToken } = backendData;
       
       if (!backendUser || !authToken) {
-        console.error('Missing user or token:', { backendUser, authToken });
         throw new Error('Invalid response from server');
       }
       
@@ -86,8 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(authToken);
       setUser(user);
     } catch (error: any) {
-      console.error('Login error:', error);
-      console.error('Error response:', error.response?.data);
+      // Extract user-friendly error message
       const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Invalid email or password';
       throw new Error(message);
     }
@@ -96,7 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (email: string, password: string, name: string, phone?: string) => {
     try {
       const response = await authAPI.register(email, password);
-      console.log('Register response:', JSON.stringify(response.data, null, 2));
       
       // Backend returns { success, data, message } format
       const responseData = response.data;
@@ -108,12 +103,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Extract data - could be responseData.data or responseData directly
       const backendData = responseData?.data || responseData;
-      console.log('Backend data:', JSON.stringify(backendData, null, 2));
       
       const { user: backendUser, token: authToken } = backendData;
       
       if (!backendUser || !authToken) {
-        console.error('Missing user or token:', { backendUser, authToken });
         throw new Error('Invalid response from server');
       }
       
@@ -139,14 +132,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             phone: phone,
           });
         } catch (profileError) {
-          console.error('Profile update error:', profileError);
-          console.error('Profile update error response:', profileError.response?.data);
           // Continue anyway, user can update later
         }
       }
     } catch (error: any) {
-      console.error('Registration error:', error);
-      console.error('Error response:', error.response?.data);
+      // Extract user-friendly error message
       const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Registration failed';
       throw new Error(message);
     }
@@ -158,7 +148,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         await authAPI.logout();
       } catch (apiError) {
-        console.error('API logout error:', apiError);
         // Continue with local logout even if API call fails
       }
       
@@ -167,7 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(null);
       setUser(null);
     } catch (error) {
-      console.error('Logout error:', error);
+      // Silent fail - logout should always succeed locally
     }
   };
 

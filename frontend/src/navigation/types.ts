@@ -28,6 +28,9 @@ export type MainStackParamList = {
     flight: any;
     passengers: number;
   };
+  BookingDetails: {
+    booking: any;
+  };
   SeatSelection: {
     flight: any;
     passengers: number;

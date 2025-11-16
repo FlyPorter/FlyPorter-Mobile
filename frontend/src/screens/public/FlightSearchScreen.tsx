@@ -24,9 +24,51 @@ export default function FlightSearchScreen({ navigation }: any) {
   const [returnDate, setReturnDate] = useState('');
   const [passengers, setPassengers] = useState(1);
 
+  // Validate if the airport/city is in the correct format: "City (CODE)"
+  const isValidAirport = (value: string) => {
+    return /^.+ \(\w{3}\)$/.test(value);
+  };
+
+  // Extract airport code from the formatted string "City (CODE)"
+  const extractAirportCode = (value: string) => {
+    const match = value.match(/\((\w{3})\)$/);
+    return match ? match[1] : '';
+  };
+
+  // Check if origin and destination are different
+  const areDifferentAirports = () => {
+    if (!isValidAirport(origin) || !isValidAirport(destination)) return true; // Don't block if invalid format
+    const originCode = extractAirportCode(origin);
+    const destCode = extractAirportCode(destination);
+    return originCode !== destCode;
+  };
+
+  // Check if all required fields are valid
+  const isSearchEnabled = 
+    isValidAirport(origin) && 
+    isValidAirport(destination) && 
+    areDifferentAirports() &&
+    departDate !== '' &&
+    (tripType === 'one-way' || (tripType === 'round-trip' && returnDate !== ''));
+
   const handleSearch = () => {
     if (!origin || !destination || !departDate) {
       Alert.alert('Missing Information', 'Please fill in all required fields');
+      return;
+    }
+
+    if (!isValidAirport(origin) || !isValidAirport(destination)) {
+      Alert.alert('Invalid Selection', 'Please select valid airports from the list');
+      return;
+    }
+
+    if (!areDifferentAirports()) {
+      Alert.alert('Invalid Route', 'Origin and destination cannot be the same airport');
+      return;
+    }
+
+    if (tripType === 'round-trip' && !returnDate) {
+      Alert.alert('Missing Information', 'Please select a return date');
       return;
     }
 
@@ -125,6 +167,7 @@ export default function FlightSearchScreen({ navigation }: any) {
                 onChange={setDestination}
                 placeholder="Select destination"
                 compact={true}
+                alignSuggestions="right"
               />
             </View>
           </View>
@@ -190,7 +233,11 @@ export default function FlightSearchScreen({ navigation }: any) {
           </View>
 
           {/* Search Button */}
-          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+          <TouchableOpacity 
+            style={[styles.searchButton, !isSearchEnabled && styles.searchButtonDisabled]} 
+            onPress={handleSearch}
+            disabled={!isSearchEnabled}
+          >
             <Ionicons name="search" size={24} color="#fff" />
             <Text style={styles.searchButtonText}>Search Flights</Text>
           </TouchableOpacity>
@@ -279,6 +326,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: 12,
     gap: spacing.sm,
+    overflow: 'visible',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -295,6 +343,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    overflow: 'visible',
   },
   locationCard: {
     flex: 1,
@@ -303,6 +352,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     minHeight: 70,
     justifyContent: 'center',
+    overflow: 'visible',
   },
   swapButtonCompact: {
     padding: spacing.xs,
@@ -405,6 +455,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: spacing.md,
     gap: spacing.sm,
+  },
+  searchButtonDisabled: {
+    backgroundColor: colors.border,
+    opacity: 0.5,
   },
   searchButtonText: {
     ...typography.button,

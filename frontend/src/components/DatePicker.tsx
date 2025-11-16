@@ -93,15 +93,30 @@ export default function DatePicker({
     return `${year}-${month}-01`;
   };
 
-  // Generate years list (current year ± 10 years)
+  // Generate years list based on min/max dates or default range
   const generateYears = React.useMemo(() => {
     const currentYearNum = new Date().getFullYear();
+    let startYear = currentYearNum - 10;
+    let endYear = currentYearNum + 10;
+    
+    // If minimumDate is provided, use its year as start
+    if (minimumDate) {
+      const minYear = new Date(minimumDate + 'T00:00:00').getFullYear();
+      startYear = Math.min(startYear, minYear);
+    }
+    
+    // If maximumDate is provided, use its year as end
+    if (maximumDate) {
+      const maxYear = new Date(maximumDate + 'T00:00:00').getFullYear();
+      endYear = Math.max(Math.min(endYear, maxYear), currentYearNum);
+    }
+    
     const years = [];
-    for (let i = currentYearNum - 10; i <= currentYearNum + 10; i++) {
+    for (let i = startYear; i <= endYear; i++) {
       years.push(i);
     }
     return years;
-  }, []);
+  }, [minimumDate, maximumDate]);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',

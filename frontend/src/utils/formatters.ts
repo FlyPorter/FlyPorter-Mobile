@@ -11,10 +11,14 @@ export const formatDate = (date: string | Date, format: 'short' | 'long' = 'shor
   let dateObj: Date;
   
   if (typeof date === 'string') {
-    // Handle YYYY-MM-DD format
-    if (date.includes('-')) {
-      dateObj = new Date(date + 'T00:00:00');
+    // Check if it's just a date string (YYYY-MM-DD) without time
+    // To avoid timezone shifts, parse it as local date
+    if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = date.split('-').map(Number);
+      dateObj = new Date(year, month - 1, day); // Create as local date
     } else {
+      // Parse ISO timestamp strings with timezone info
+      // e.g., "2026-01-01T11:00:00.000Z" or "2026-01-01 11:00:00.000000 +00:00"
       dateObj = new Date(date);
     }
   } else {
@@ -26,6 +30,7 @@ export const formatDate = (date: string | Date, format: 'short' | 'long' = 'shor
     return date as string; // Return original if invalid
   }
   
+  // Display in user's local timezone (JavaScript default behavior)
   if (format === 'long') {
     return dateObj.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -42,8 +47,18 @@ export const formatDate = (date: string | Date, format: 'short' | 'long' = 'shor
   });
 };
 
-export const formatTime = (time: string): string => {
-  // Assuming time is in format "HH:MM"
+export const formatTime = (time: string | Date): string => {
+  // If it's a Date object or ISO timestamp, format it to local time
+  if (time instanceof Date || (typeof time === 'string' && (time.includes('T') || time.includes('+')))) {
+    const dateObj = time instanceof Date ? time : new Date(time);
+    return dateObj.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }
+  
+  // Legacy format: "HH:MM"
   const [hours, minutes] = time.split(':');
   const hour = parseInt(hours);
   const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -95,5 +110,82 @@ export const getInitials = (name: string): string => {
   const parts = name.trim().split(' ');
   if (parts.length === 1) return parts[0][0].toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+// Format UTC timestamp to local date and time
+export const formatDateTime = (timestamp: string | Date): { date: string; time: string } => {
+  const dateObj = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+  
+  if (isNaN(dateObj.getTime())) {
+    return { date: '', time: '' };
+  }
+  
+  const date = dateObj.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  
+  const time = dateObj.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  
+  return { date, time };
+};
+
+// Format UTC timestamp to a specific timezone (e.g., for departure/arrival cities)
+export const formatTimeInTimezone = (timestamp: string | Date, timezone?: string): string => {
+  if (!timestamp) return '';
+  
+  try {
+    const dateObj = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+    
+    if (isNaN(dateObj.getTime())) return '';
+    
+    // If timezone is provided (e.g., 'America/Toronto', 'America/Vancouver')
+    if (timezone) {
+      return dateObj.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: timezone,
+      });
+    }
+    
+    // Fallback to local timezone
+    return dateObj.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch (error) {
+    // If timezone is invalid, fall back to local time
+    return formatTime(timestamp);
+  }
+};
+
+// Get timezone abbreviation for display (e.g., "EST", "PST")
+export const getTimezoneAbbr = (timestamp: string | Date, timezone?: string): string => {
+  if (!timestamp || !timezone) return '';
+  
+  try {
+    const dateObj = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+    
+    if (isNaN(dateObj.getTime())) return '';
+    
+    // Get timezone abbreviation
+    const formatted = dateObj.toLocaleTimeString('en-US', {
+      timeZone: timezone,
+      timeZoneName: 'short',
+    });
+    
+    // Extract abbreviation (e.g., "3:00:00 PM EST" -> "EST")
+    const match = formatted.match(/\b[A-Z]{3,4}\b/);
+    return match ? match[0] : '';
+  } catch {
+    return '';
+  }
 };
 

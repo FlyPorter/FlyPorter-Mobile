@@ -10,10 +10,63 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import { bookingAPI } from '../../services/api';
+
+// Timezone mapping for Canadian airports
+const AIRPORT_TIMEZONES: { [key: string]: string } = {
+  YYZ: 'America/Toronto',      // Toronto
+  YVR: 'America/Vancouver',    // Vancouver
+  YUL: 'America/Toronto',      // Montreal (Eastern Time)
+  YOW: 'America/Toronto',      // Ottawa
+  YYC: 'America/Edmonton',     // Calgary
+  YEG: 'America/Edmonton',     // Edmonton
+  YHZ: 'America/Halifax',      // Halifax
+  YWG: 'America/Winnipeg',     // Winnipeg
+  YQB: 'America/Toronto',      // Quebec City (Eastern Time)
+  YYJ: 'America/Vancouver',    // Victoria (Pacific Time)
+  TEST: 'America/Toronto',     // Test airport
+};
+
+// Helper function to get timezone for an airport code
+const getAirportTimezone = (airportCode: string): string => {
+  return AIRPORT_TIMEZONES[airportCode] || 'America/Toronto'; // Default to Toronto timezone
+};
+
+// Format UTC timestamp to airport-specific timezone
+const formatTimeInAirportTimezone = (timestamp: string, airportCode: string): string => {
+  if (!timestamp) return '';
+  try {
+    const date = new Date(timestamp);
+    const timezone = getAirportTimezone(airportCode);
+    
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: timezone,
+    });
+  } catch {
+    return timestamp;
+  }
+};
+
+// Calculate duration between two timestamps
+const calculateDuration = (departureTimestamp: string, arrivalTimestamp: string): string => {
+  if (!departureTimestamp || !arrivalTimestamp) return 'N/A';
+  try {
+    const departure = new Date(departureTimestamp);
+    const arrival = new Date(arrivalTimestamp);
+    const durationMs = arrival.getTime() - departure.getTime();
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  } catch {
+    return 'N/A';
+  }
+};
 
 interface Booking {
   id: string;
@@ -24,9 +77,13 @@ interface Booking {
     airline: { name: string };
     departureTime: string;
     arrivalTime: string;
-    origin: { code: string; city: string };
-    destination: { code: string; city: string };
+    departure_time?: string; // UTC timestamp from backend
+    arrival_time?: string; // UTC timestamp from backend
+    origin: { code: string; city: string; timezone?: string };
+    destination: { code: string; city: string; timezone?: string };
   };
+  seatNumber?: string; // Seat number from booking
+  seatClass?: number; // Seat price modifier (1.0, 1.5, 2.0)
   passengers: number;
   totalAmount: number;
   bookingDate: string;
@@ -39,19 +96,26 @@ export default function MyBookingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
 
+  // Refresh bookings when tab changes
   useEffect(() => {
     loadBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // Refresh bookings whenever the screen comes into focus (e.g., after seat change)
+  useFocusEffect(
+    React.useCallback(() => {
+      loadBookings();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab])
+  );
+
   const loadBookings = async () => {
     try {
       setLoading(true);
       const filter = activeTab === 'upcoming' ? 'upcoming' : activeTab === 'past' ? 'past' : 'all';
-      console.log('Loading bookings with filter:', filter);
       
       const response = await bookingAPI.getMyBookings(filter);
-      console.log('Bookings API response:', JSON.stringify(response.data, null, 2));
       
       // Transform API response to match Booking interface
       // Handle different response structures
@@ -64,8 +128,6 @@ export default function MyBookingsScreen() {
       } else if (response.data?.data && Array.isArray(response.data.data)) {
         bookingsData = response.data.data;
       }
-      
-      console.log('Extracted bookings data:', bookingsData.length, 'bookings');
       
       const transformedBookings: Booking[] = bookingsData.map((booking: any) => {
         try {
@@ -85,8 +147,27 @@ export default function MyBookingsScreen() {
           // Get airport info
           const originCode = booking.flight?.route?.origin_airport?.airport_code || '';
           const originCity = booking.flight?.route?.origin_airport?.city_name || '';
+          const originAirportName = booking.flight?.route?.origin_airport?.airport_name || originCity;
           const destCode = booking.flight?.route?.destination_airport?.airport_code || '';
           const destCity = booking.flight?.route?.destination_airport?.city_name || '';
+          const destAirportName = booking.flight?.route?.destination_airport?.airport_name || destCity;
+          
+          // Get seat number and price modifier
+          const seatNumber = booking.seat?.seat_number || booking.seat_number || '';
+          const seatPriceModifier = parseFloat(booking.seat?.price_modifier || '1.0');
+          
+          // Get raw UTC timestamps
+          const departureTimestamp = booking.flight?.departure_time || '';
+          const arrivalTimestamp = booking.flight?.arrival_time || '';
+          
+          // Format times in airport-specific timezones
+          const formattedDepartureTime = departureTimestamp ? 
+            formatTimeInAirportTimezone(departureTimestamp, originCode) : '';
+          const formattedArrivalTime = arrivalTimestamp ? 
+            formatTimeInAirportTimezone(arrivalTimestamp, destCode) : '';
+          
+          // Calculate flight duration
+          const flightDuration = calculateDuration(departureTimestamp, arrivalTimestamp);
           
           return {
             id: String(booking.booking_id || booking.id || ''),
@@ -94,19 +175,32 @@ export default function MyBookingsScreen() {
             status: booking.status === 'cancelled' ? 'cancelled' : 
                    isPast ? 'completed' : 'confirmed',
             flight: {
+              id: booking.flight?.flight_id || booking.flight_id,  // Add flight ID for API fetch
+              flight_id: booking.flight?.flight_id || booking.flight_id,  // Add flight_id for compatibility
               flightNumber: airlineCode + String(booking.flight?.flight_id || booking.flight_id || ''),
               airline: { name: airlineName },
-              departureTime: departureTime ? departureTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
-              arrivalTime: arrivalTime ? arrivalTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+              departureTime: formattedDepartureTime,
+              arrivalTime: formattedArrivalTime,
+              departure_time: departureTimestamp,
+              arrival_time: arrivalTimestamp,
+              departureDate: departureTimestamp ? departureTimestamp.split('T')[0] : '', // Add date in YYYY-MM-DD format
+              duration: flightDuration, // Calculated from timestamps
+              price: parseFloat(booking.total_price || booking.totalAmount || '0'), // Add price for compatibility
               origin: { 
                 code: originCode, 
-                city: originCity
+                city: originCity,
+                name: originAirportName, // Use airport name, not city name
+                timezone: booking.flight?.route?.origin_airport?.city?.timezone || getAirportTimezone(originCode)
               },
               destination: { 
                 code: destCode, 
-                city: destCity
+                city: destCity,
+                name: destAirportName, // Use airport name, not city name
+                timezone: booking.flight?.route?.destination_airport?.city?.timezone || getAirportTimezone(destCode)
               },
             },
+            seatNumber, // Add seat number from booking
+            seatClass: seatPriceModifier, // Add seat price modifier for class restriction
             passengers: 1, // API doesn't return passenger count, default to 1
             totalAmount: parseFloat(booking.total_price || booking.totalAmount || '0'),
             bookingDate: booking.booking_time ? new Date(booking.booking_time).toISOString().split('T')[0] : 
@@ -119,7 +213,6 @@ export default function MyBookingsScreen() {
         }
       }).filter((booking): booking is Booking => booking !== null);
       
-      console.log('Transformed bookings:', transformedBookings.length);
       setBookings(transformedBookings);
       setLoading(false);
       setRefreshing(false);
@@ -139,6 +232,35 @@ export default function MyBookingsScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     loadBookings();
+  };
+
+  const handleViewDetails = async (booking: Booking) => {
+    try {
+      // Fetch fresh booking details from API
+      const response = await bookingAPI.getById(booking.id);
+      const bookingData = response.data?.data || response.data;
+      
+      // Extract seat information
+      const seatNumber = bookingData.seat_number || booking.seatNumber;
+      const seatPriceModifier = bookingData.seat?.price_modifier 
+        ? parseFloat(bookingData.seat.price_modifier) 
+        : booking.seatClass || 1.0;
+      
+      // Navigate to booking details with fresh data
+      navigation.navigate('BookingDetails', {
+        booking: {
+          ...booking,
+          seatNumber,
+          seatClass: seatPriceModifier,
+        },
+      } as never);
+    } catch (error: any) {
+      console.error('Error fetching booking details:', error);
+      // If API fails, fallback to cached data
+      navigation.navigate('BookingDetails', {
+        booking,
+      } as never);
+    }
   };
 
   const handleCancelBooking = (booking: Booking) => {
@@ -235,19 +357,7 @@ export default function MyBookingsScreen() {
         <View style={styles.bookingActions}>
           <TouchableOpacity 
             style={styles.actionButton}
-            onPress={() => {
-              // Navigate to flight details with booking flight info
-              navigation.navigate('FlightDetails' as never, {
-                flight: {
-                  ...booking.flight,
-                  price: booking.totalAmount / booking.passengers,
-                },
-                passengers: booking.passengers,
-                isRoundTrip: false,
-                bookingId: booking.id,
-                bookingReference: booking.bookingReference,
-              } as never);
-            }}
+            onPress={() => handleViewDetails(booking)}
           >
             <Ionicons name="document-text" size={20} color={colors.primary} />
             <Text style={styles.actionButtonText}>View Details</Text>

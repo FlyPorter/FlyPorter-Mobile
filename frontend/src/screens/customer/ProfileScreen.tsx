@@ -20,6 +20,7 @@ export default function ProfileScreen() {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [passport, setPassport] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -33,9 +34,20 @@ export default function ProfileScreen() {
       const profileData = response.data?.data || response.data;
       
       if (profileData) {
-        setName(profileData.full_name || profileData.name || user?.name || '');
-        setEmail(profileData.email || user?.email || '');
-        setPhone(profileData.phone || profileData.phone_number || user?.phone || '');
+        const loadedName = profileData.customer_info?.full_name || profileData.full_name || profileData.name || user?.name || '';
+        const loadedEmail = profileData.email || user?.email || '';
+        let loadedPhone = profileData.customer_info?.phone || profileData.phone || profileData.phone_number || user?.phone || '';
+        const loadedPassport = profileData.customer_info?.passport_number || '';
+        
+        // Strip non-numeric characters from phone number (remove +, spaces, dashes, etc.)
+        if (loadedPhone) {
+          loadedPhone = loadedPhone.replace(/[^0-9]/g, '');
+        }
+        
+        setName(loadedName);
+        setEmail(loadedEmail);
+        setPhone(loadedPhone);
+        setPassport(loadedPassport);
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -54,12 +66,11 @@ export default function ProfileScreen() {
 
     setLoading(true);
     try {
-      console.log('Updating profile with:', { full_name: name.trim(), phone: phone.trim() || undefined });
       const response = await profileAPI.update({
         full_name: name.trim(),
         phone: phone.trim() || undefined,
+        passport_number: passport.trim() || undefined,
       });
-      console.log('Profile update response:', JSON.stringify(response.data, null, 2));
       
       const responseData = response.data;
       // Check if response has success field
@@ -67,10 +78,10 @@ export default function ProfileScreen() {
         throw new Error(responseData?.error || responseData?.message || 'Profile update failed');
       }
       
-      Alert.alert('Success', 'Profile updated successfully');
-      setEditing(false);
-      // Reload profile to get updated data
+      // Reload profile to get updated data first
       await loadProfile();
+      setEditing(false);
+      Alert.alert('Success', 'Profile updated successfully');
     } catch (error: any) {
       console.error('Profile update error:', error);
       console.error('Error response:', error.response?.data);
@@ -167,9 +178,24 @@ export default function ProfileScreen() {
             <TextInput
               style={[styles.input, !editing && styles.inputDisabled]}
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(text) => {
+                // Only allow numeric characters
+                const numericText = text.replace(/[^0-9]/g, '');
+                setPhone(numericText);
+              }}
               editable={editing}
               keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Passport Number</Text>
+            <TextInput
+              style={[styles.input, !editing && styles.inputDisabled]}
+              value={passport}
+              onChangeText={setPassport}
+              editable={editing}
+              autoCapitalize="characters"
             />
           </View>
         </View>
@@ -204,41 +230,6 @@ export default function ProfileScreen() {
             <View style={styles.menuItemLeft}>
               <Ionicons name="card" size={24} color={colors.primary} />
               <Text style={styles.menuItemText}>Payment Methods</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Support */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Support</Text>
-
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="help-circle" size={24} color={colors.primary} />
-              <Text style={styles.menuItemText}>Help Center</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="document-text" size={24} color={colors.primary} />
-              <Text style={styles.menuItemText}>Terms & Conditions</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="shield-checkmark" size={24} color={colors.primary} />
-              <Text style={styles.menuItemText}>Privacy Policy</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
           </TouchableOpacity>

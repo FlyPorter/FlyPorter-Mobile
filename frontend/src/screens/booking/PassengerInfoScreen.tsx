@@ -22,7 +22,7 @@ interface PassengerInfo {
 }
 
 export default function PassengerInfoScreen({ route, navigation }: any) {
-  const { flight, passengers, selectedSeats, seatCharges } = route.params;
+  const { flight, passengers, selectedSeats, seatPriceModifier } = route.params;
   
   const [passengerData, setPassengerData] = useState<PassengerInfo[]>(
     Array(passengers).fill(null).map(() => ({
@@ -53,7 +53,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
       flight,
       passengers,
       selectedSeats,
-      seatCharges,
+      seatPriceModifier, // Pass modifier to match backend calculation
       passengerData,
     });
   };
@@ -127,6 +127,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
                 onChange={(value) => updatePassenger(index, 'dateOfBirth', value)}
                 placeholder="Select date of birth"
                 label="Date of Birth"
+                minimumDate="1949-10-01"
                 maximumDate={new Date().toISOString().split('T')[0]}
               />
             </View>
@@ -146,18 +147,9 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
             </Text>
           </View>
 
-          {seatCharges > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Seat Selection</Text>
-              <Text style={styles.summaryValue}>${seatCharges.toFixed(2)}</Text>
-            </View>
-          )}
-
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Taxes & Fees</Text>
-            <Text style={styles.summaryValue}>
-              ${((flight.price * passengers + seatCharges) * 0.15).toFixed(2)}
-            </Text>
+            <Text style={styles.summaryLabel}>Seat Class Multiplier</Text>
+            <Text style={styles.summaryValue}>×{(seatPriceModifier || 1.0).toFixed(1)}</Text>
           </View>
 
           <View style={styles.divider} />
@@ -165,7 +157,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
           <View style={styles.summaryRow}>
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>
-              ${((flight.price * passengers + seatCharges) * 1.15).toFixed(2)}
+              ${((flight.price * passengers) * (seatPriceModifier || 1.0)).toFixed(2)}
             </Text>
           </View>
         </View>
@@ -255,7 +247,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 8,
     padding: spacing.md,
+    paddingVertical: 14,
     backgroundColor: colors.surface,
+    minHeight: 50,
+    lineHeight: 22,
   },
   summaryCard: {
     backgroundColor: '#fff',

@@ -13,24 +13,128 @@ import { colors, spacing, typography } from '../../theme/theme';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
+// Timezone mapping for Canadian airports
+const AIRPORT_TIMEZONES: { [key: string]: string } = {
+  YYZ: 'America/Toronto',      // Toronto
+  YVR: 'America/Vancouver',    // Vancouver
+  YUL: 'America/Toronto',      // Montreal (Eastern Time)
+  YOW: 'America/Toronto',      // Ottawa
+  YYC: 'America/Edmonton',     // Calgary
+  YEG: 'America/Edmonton',     // Edmonton
+  YHZ: 'America/Halifax',      // Halifax
+  YWG: 'America/Winnipeg',     // Winnipeg
+  YQB: 'America/Toronto',      // Quebec City (Eastern Time)
+  YYJ: 'America/Vancouver',    // Victoria (Pacific Time)
+  TEST: 'America/Toronto',     // Test airport
+};
+
+// Helper function to get timezone for an airport code
+const getAirportTimezone = (airportCode: string): string => {
+  return AIRPORT_TIMEZONES[airportCode] || 'America/Toronto'; // Default to Toronto timezone
+};
+
 export default function BookingConfirmationScreen({ route, navigation }: any) {
   const { bookingId, flight, passengers, selectedSeats, passengerData, totalAmount } = route.params;
+  
+  // Helper function to format date from date string or UTC timestamp
+  const formatFlightDate = (dateString: string) => {
+    if (!dateString) return new Date().toLocaleDateString();
+    try {
+      let date: Date;
+      
+      // Check if it's just a date string (YYYY-MM-DD) without time
+      // To avoid timezone shifts, parse it as local date
+      if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        date = new Date(year, month - 1, day); // Create as local date
+      } else {
+        // Parse UTC timestamp and convert to local timezone
+        date = new Date(dateString);
+      }
+      
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch {
+      return new Date().toLocaleDateString();
+    }
+  };
+
+  // Helper function to format time in specific city timezone (without timezone abbreviation)
+  const formatFlightTime = (timestamp: string, cityTimezone?: string) => {
+    if (!timestamp) return '';
+    try {
+      // If it's already just a time (HH:MM), return as is
+      if (timestamp.match(/^\d{2}:\d{2}$/)) {
+        return timestamp;
+      }
+      
+      // Parse UTC timestamp
+      const date = new Date(timestamp);
+      
+      // If timezone is provided (e.g., 'America/Toronto', 'America/Vancouver')
+      if (cityTimezone) {
+        return date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: cityTimezone,
+        });
+      }
+      
+      // Fallback to local timezone
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: false,
+      });
+    } catch {
+      return timestamp;
+    }
+  };
+
+  // Get flight departure time from multiple possible sources
+  // Priority: departure_time (UTC timestamp from DB) > departureTime > departureDate
+  const departureTimestamp = flight?.departure_time || 
+                             flight?.departureTime || 
+                             flight?.departureDate ||
+                             flight?.date;
+  
+  const formattedFlightDate = formatFlightDate(departureTimestamp);
+  
+  // Get airport codes for timezone lookup
+  const originCode = flight?.origin?.code || '';
+  const destCode = flight?.destination?.code || '';
+  
+  // Format times in city-specific timezones with airport timezone map as fallback
+  const departureTimeWithTz = formatFlightTime(
+    flight?.departure_time || flight?.departureTime || '',
+    flight?.origin?.timezone || getAirportTimezone(originCode)
+  );
+  const arrivalTimeWithTz = formatFlightTime(
+    flight?.arrival_time || flight?.arrivalTime || '',
+    flight?.destination?.timezone || getAirportTimezone(destCode)
+  );
   
   // Ensure flight object has all required fields with fallbacks
   const safeFlight = {
     ...flight,
     origin: {
-      code: flight?.origin?.code || '',
+      code: originCode,
       city: flight?.origin?.city || flight?.origin?.name || '',
       name: flight?.origin?.name || flight?.origin?.city || '',
+      timezone: flight?.origin?.timezone || getAirportTimezone(originCode),
     },
     destination: {
-      code: flight?.destination?.code || '',
+      code: destCode,
       city: flight?.destination?.city || flight?.destination?.name || '',
       name: flight?.destination?.name || flight?.destination?.city || '',
+      timezone: flight?.destination?.timezone || getAirportTimezone(destCode),
     },
-    departureTime: flight?.departureTime || '',
-    arrivalTime: flight?.arrivalTime || '',
+    departureTime: departureTimeWithTz || flight?.departureTime || '',
+    arrivalTime: arrivalTimeWithTz || flight?.arrivalTime || '',
     duration: flight?.duration || '',
     flightNumber: flight?.flightNumber || '',
     airline: {
@@ -112,7 +216,7 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
               </div>
               <div class="info-row">
                 <span class="label">Date:</span>
-                <span>${new Date().toLocaleDateString()}</span>
+                <span>${formattedFlightDate}</span>
               </div>
             </div>
 
@@ -224,7 +328,7 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
               </View>
               <View style={styles.dateBadge}>
                 <Ionicons name="calendar" size={16} color={colors.primary} />
-                <Text style={styles.dateText}>{new Date().toLocaleDateString()}</Text>
+                <Text style={styles.dateText}>{formattedFlightDate}</Text>
               </View>
             </View>
 

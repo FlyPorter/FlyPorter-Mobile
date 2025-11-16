@@ -31,8 +31,10 @@ export default function LoginScreen({ navigation }: any) {
     try {
       await login(email, password);
       // Navigation will happen automatically via AuthContext
-    } catch (error) {
-      Alert.alert('Login Failed', 'Please check your credentials and try again');
+    } catch (error: any) {
+      // Display the specific error message from the server
+      const errorMessage = error.message || 'Please check your credentials and try again';
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
     }

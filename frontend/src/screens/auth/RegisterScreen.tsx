@@ -44,8 +44,10 @@ export default function RegisterScreen({ navigation }: any) {
     try {
       await register(email, password, name, phone);
       // Navigation will happen automatically via AuthContext
-    } catch (error) {
-      Alert.alert('Registration Failed', 'Please try again');
+    } catch (error: any) {
+      // Display the specific error message from the server
+      const errorMessage = error.message || 'Please try again';
+      Alert.alert('Registration Failed', errorMessage);
     } finally {
       setLoading(false);
     }

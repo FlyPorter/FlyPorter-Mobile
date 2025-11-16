@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { bookingAPI, paymentAPI } from '../../services/api';
 
 export default function PaymentScreen({ route, navigation }: any) {
-  const { flight, passengers, selectedSeats, seatCharges, passengerData } = route.params;
+  const { flight, passengers, selectedSeats, seatPriceModifier, passengerData } = route.params;
   const { isAuthenticated } = useAuth();
   
   const [cardNumber, setCardNumber] = useState('');
@@ -26,7 +26,8 @@ export default function PaymentScreen({ route, navigation }: any) {
   const [cvv, setCvv] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  const totalAmount = (flight.price * passengers + seatCharges) * 1.15;
+  // Backend formula: base_price × price_modifier
+  const totalAmount = (flight.price * passengers) * (seatPriceModifier || 1.0);
 
   const handlePayment = async () => {
     // Check authentication first
@@ -51,8 +52,10 @@ export default function PaymentScreen({ route, navigation }: any) {
       return;
     }
 
-    if (cardNumber.replace(/\s/g, '').length !== 16) {
-      Alert.alert('Invalid Card', 'Please enter a valid 16-digit card number');
+    // Validate card number is exactly 16 digits
+    const cardDigits = cardNumber.replace(/\s/g, '');
+    if (cardDigits.length !== 16) {
+      Alert.alert('Invalid Card Number', 'Card number must be exactly 16 digits');
       return;
     }
 
@@ -62,9 +65,30 @@ export default function PaymentScreen({ route, navigation }: any) {
       return;
     }
 
-    // Validate CVV
-    if (!cvv || cvv.length < 3) {
-      Alert.alert('Invalid CVV', 'Please enter a valid 3-digit CVV');
+    // Validate expiry date is in the future
+    const [month, year] = expiryDate.split('/');
+    const expiryMonth = parseInt(month);
+    const expiryYear = parseInt(`20${year}`);
+    
+    // Validate month range
+    if (expiryMonth < 1 || expiryMonth > 12) {
+      Alert.alert('Invalid Expiry Date', 'Please enter a valid month (01-12)');
+      return;
+    }
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1; // getMonth() returns 0-11
+    
+    // Check if expiry date is in the past or current month
+    if (expiryYear < currentYear || (expiryYear === currentYear && expiryMonth <= currentMonth)) {
+      Alert.alert('Invalid Expiry Date', 'Card expiry date must be in the future');
+      return;
+    }
+
+    // Validate CVV is 3 or 4 digits
+    if (!cvv || cvv.length < 3 || cvv.length > 4) {
+      Alert.alert('Invalid CVV', 'CVV must be 3 or 4 digits');
       return;
     }
 
@@ -94,9 +118,7 @@ export default function PaymentScreen({ route, navigation }: any) {
       };
 
       // Validate payment first
-      console.log('Payment data being sent:', paymentData);
       const paymentResponse = await paymentAPI.validate(paymentData);
-      console.log('Payment validation response:', JSON.stringify(paymentResponse.data, null, 2));
       
       const responseData = paymentResponse.data;
       // Check if response has success field
@@ -105,7 +127,6 @@ export default function PaymentScreen({ route, navigation }: any) {
       }
       
       const paymentResult = responseData?.data || responseData;
-      console.log('Payment result:', paymentResult);
       
       if (!paymentResult?.valid) {
         throw new Error('Payment validation failed. Please check your card details.');
@@ -125,12 +146,10 @@ export default function PaymentScreen({ route, navigation }: any) {
         throw new Error('Flight ID is missing');
       }
       
-      console.log('Creating booking with:', { flight_id: typeof flightId === 'string' ? parseInt(flightId) : flightId, seat_number: seatNumber });
       const bookingResponse = await bookingAPI.create({
         flight_id: typeof flightId === 'string' ? parseInt(flightId) : flightId,
         seat_number: seatNumber,
       });
-      console.log('Booking response:', JSON.stringify(bookingResponse.data, null, 2));
 
       const bookingResponseData = bookingResponse.data;
       // Check if response has success field
@@ -153,8 +172,6 @@ export default function PaymentScreen({ route, navigation }: any) {
       });
     } catch (error: any) {
       setProcessing(false);
-      console.error('Payment/Booking error:', error);
-      console.error('Error response:', error.response?.data);
       
       if (error.response?.status === 401) {
         Alert.alert(
@@ -179,18 +196,29 @@ export default function PaymentScreen({ route, navigation }: any) {
   };
 
   const formatCardNumber = (text: string) => {
-    const cleaned = text.replace(/\s/g, '');
-    const formatted = cleaned.match(/.{1,4}/g)?.join(' ') || cleaned;
+    // Remove all non-numeric characters (including spaces and letters)
+    const cleaned = text.replace(/\D/g, '');
+    // Limit to 16 digits
+    const limited = cleaned.slice(0, 16);
+    // Format with spaces every 4 digits
+    const formatted = limited.match(/.{1,4}/g)?.join(' ') || limited;
     setCardNumber(formatted);
   };
 
   const formatExpiryDate = (text: string) => {
+    // Remove all non-numeric characters
     const cleaned = text.replace(/\D/g, '');
     if (cleaned.length >= 2) {
       setExpiryDate(cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4));
     } else {
       setExpiryDate(cleaned);
     }
+  };
+
+  const formatCVV = (text: string) => {
+    // Remove all non-numeric characters
+    const cleaned = text.replace(/\D/g, '');
+    setCvv(cleaned);
   };
 
   return (
@@ -264,7 +292,7 @@ export default function PaymentScreen({ route, navigation }: any) {
                 style={styles.input}
                 placeholder="123"
                 value={cvv}
-                onChangeText={setCvv}
+                onChangeText={formatCVV}
                 keyboardType="number-pad"
                 maxLength={4}
                 secureTextEntry
@@ -309,18 +337,9 @@ export default function PaymentScreen({ route, navigation }: any) {
               </Text>
             </View>
 
-            {seatCharges > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Seat Selection</Text>
-                <Text style={styles.summaryValue}>${seatCharges.toFixed(2)}</Text>
-              </View>
-            )}
-
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Taxes & Fees</Text>
-              <Text style={styles.summaryValue}>
-                ${((flight.price * passengers + seatCharges) * 0.15).toFixed(2)}
-              </Text>
+              <Text style={styles.summaryLabel}>Seat Class Multiplier</Text>
+              <Text style={styles.summaryValue}>×{(seatPriceModifier || 1.0).toFixed(1)}</Text>
             </View>
 
             <View style={styles.divider} />
@@ -431,7 +450,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 8,
     padding: spacing.md,
+    paddingVertical: 14,
     backgroundColor: colors.surface,
+    minHeight: 50,
+    lineHeight: 22,
   },
   inputWithIcon: {
     flexDirection: 'row',
@@ -441,6 +463,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingRight: spacing.md,
     backgroundColor: colors.surface,
+    minHeight: 50,
   },
   row: {
     flexDirection: 'row',

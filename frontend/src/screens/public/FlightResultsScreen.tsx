@@ -9,11 +9,32 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import { flightAPI } from '../../services/api';
 import { formatDate } from '../../utils/formatters';
+
+// Timezone mapping for Canadian airports
+const AIRPORT_TIMEZONES: { [key: string]: string } = {
+  YYZ: 'America/Toronto',      // Toronto
+  YVR: 'America/Vancouver',    // Vancouver
+  YUL: 'America/Toronto',      // Montreal (Eastern Time)
+  YOW: 'America/Toronto',      // Ottawa
+  YYC: 'America/Edmonton',     // Calgary
+  YEG: 'America/Edmonton',     // Edmonton
+  YHZ: 'America/Halifax',      // Halifax
+  YWG: 'America/Winnipeg',     // Winnipeg
+  YQB: 'America/Toronto',      // Quebec City (Eastern Time)
+  YYJ: 'America/Vancouver',    // Victoria (Pacific Time)
+  TEST: 'America/Toronto',     // Test airport
+};
+
+// Helper function to get timezone for an airport code
+const getAirportTimezone = (airportCode: string): string => {
+  return AIRPORT_TIMEZONES[airportCode] || 'America/Toronto'; // Default to Toronto timezone
+};
 
 interface Flight {
   id: string;
@@ -21,11 +42,13 @@ interface Flight {
   airline: { name: string; code: string };
   departureTime: string;
   arrivalTime: string;
+  departure_time?: string; // UTC timestamp from backend
+  arrival_time?: string; // UTC timestamp from backend
   duration: string;
   price: number;
   availableSeats: number;
-  origin: { code: string; name: string; city: string };
-  destination: { code: string; name: string; city: string };
+  origin: { code: string; name: string; city: string; timezone?: string };
+  destination: { code: string; name: string; city: string; timezone?: string };
 }
 
 export default function FlightResultsScreen({ route, navigation }: any) {
@@ -73,24 +96,25 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         return;
       }
 
-      // Call API to get all flights
-      const response = await flightAPI.search();
+      // Call API with search filters - let backend do the filtering
+      const response = await flightAPI.search({
+        departure_airport: originCode,
+        destination_airport: destCode,
+        date: departDate,
+      });
       
       if (response.data?.success && response.data?.data) {
-        // Filter flights by origin and destination
+        // Map flights to our format
         const filteredFlights = response.data.data
-          .filter((flight: any) => {
-            const flightOrigin = (flight.route?.origin_airport_code || flight.route?.origin_airport?.airport_code)?.toUpperCase();
-            const flightDest = (flight.route?.destination_airport_code || flight.route?.destination_airport?.airport_code)?.toUpperCase();
-            return flightOrigin === originCode.toUpperCase() && 
-                   flightDest === destCode.toUpperCase();
-          })
           .map((flight: any) => {
             const departureTime = new Date(flight.departure_time);
             const arrivalTime = new Date(flight.arrival_time);
             const durationMs = arrivalTime.getTime() - departureTime.getTime();
             const hours = Math.floor(durationMs / (1000 * 60 * 60));
             const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+            
+            const originAirportCode = flight.route?.origin_airport_code || '';
+            const destAirportCode = flight.route?.destination_airport_code || '';
             
             return {
               id: String(flight.flight_id),
@@ -102,18 +126,22 @@ export default function FlightResultsScreen({ route, navigation }: any) {
               },
               departureTime: departureTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
               arrivalTime: arrivalTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              departure_time: flight.departure_time, // Keep original UTC timestamp
+              arrival_time: flight.arrival_time, // Keep original UTC timestamp
               duration: `${hours}h ${minutes}m`,
               price: parseFloat(flight.base_price || '0'),
               availableSeats: flight.available_seats || flight.seats?.filter((s: any) => s.is_available).length || 0,
               origin: { 
-                code: flight.route?.origin_airport_code || '', 
+                code: originAirportCode,
                 name: flight.route?.origin_airport?.airport_name || '',
-                city: flight.route?.origin_airport?.city_name || '' 
+                city: flight.route?.origin_airport?.city_name || '',
+                timezone: flight.route?.origin_airport?.city?.timezone || getAirportTimezone(originAirportCode)
               },
               destination: { 
-                code: flight.route?.destination_airport_code || '', 
+                code: destAirportCode,
                 name: flight.route?.destination_airport?.airport_name || '',
-                city: flight.route?.destination_airport?.city_name || '' 
+                city: flight.route?.destination_airport?.city_name || '',
+                timezone: flight.route?.destination_airport?.city?.timezone || getAirportTimezone(destAirportCode)
               },
             };
           });
@@ -124,7 +152,6 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       }
       setLoading(false);
     } catch (error: any) {
-      console.error('Error loading flights:', error);
       Alert.alert('Error', 'Failed to load flights. Please try again.');
       setOutboundFlights([]);
       setLoading(false);
@@ -149,24 +176,25 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         return;
       }
 
-      // Call API to get all flights
-      const response = await flightAPI.search();
+      // Call API with search filters - let backend do the filtering
+      const response = await flightAPI.search({
+        departure_airport: originCode,
+        destination_airport: destCode,
+        date: returnDate,
+      });
       
       if (response.data?.success && response.data?.data) {
-        // Filter flights by origin and destination (reversed for return)
+        // Map flights to our format
         const filteredFlights = response.data.data
-          .filter((flight: any) => {
-            const flightOrigin = (flight.route?.origin_airport_code || flight.route?.origin_airport?.airport_code)?.toUpperCase();
-            const flightDest = (flight.route?.destination_airport_code || flight.route?.destination_airport?.airport_code)?.toUpperCase();
-            return flightOrigin === originCode.toUpperCase() && 
-                   flightDest === destCode.toUpperCase();
-          })
           .map((flight: any) => {
             const departureTime = new Date(flight.departure_time);
             const arrivalTime = new Date(flight.arrival_time);
             const durationMs = arrivalTime.getTime() - departureTime.getTime();
             const hours = Math.floor(durationMs / (1000 * 60 * 60));
             const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+            
+            const originAirportCode = flight.route?.origin_airport_code || '';
+            const destAirportCode = flight.route?.destination_airport_code || '';
             
             return {
               id: String(flight.flight_id),
@@ -178,18 +206,22 @@ export default function FlightResultsScreen({ route, navigation }: any) {
               },
               departureTime: departureTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
               arrivalTime: arrivalTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+              departure_time: flight.departure_time, // Keep original UTC timestamp
+              arrival_time: flight.arrival_time, // Keep original UTC timestamp
               duration: `${hours}h ${minutes}m`,
               price: parseFloat(flight.base_price || '0'),
               availableSeats: flight.available_seats || flight.seats?.filter((s: any) => s.is_available).length || 0,
               origin: { 
-                code: flight.route?.origin_airport_code || '', 
+                code: originAirportCode,
                 name: flight.route?.origin_airport?.airport_name || '',
-                city: flight.route?.origin_airport?.city_name || '' 
+                city: flight.route?.origin_airport?.city_name || '',
+                timezone: flight.route?.origin_airport?.city?.timezone || getAirportTimezone(originAirportCode)
               },
               destination: { 
-                code: flight.route?.destination_airport_code || '', 
+                code: destAirportCode,
                 name: flight.route?.destination_airport?.airport_name || '',
-                city: flight.route?.destination_airport?.city_name || '' 
+                city: flight.route?.destination_airport?.city_name || '',
+                timezone: flight.route?.destination_airport?.city?.timezone || getAirportTimezone(destAirportCode)
               },
             };
           });
@@ -200,7 +232,6 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       }
       setLoadingReturn(false);
     } catch (error: any) {
-      console.error('Error loading return flights:', error);
       setReturnFlights([]);
       setLoadingReturn(false);
     }
@@ -228,8 +259,35 @@ export default function FlightResultsScreen({ route, navigation }: any) {
     setExpandedSide(side);
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!isAuthenticated) {
+      // Store the pending navigation before redirecting to login
+      try {
+        const pendingNavigation = {
+          screen: 'FlightDetails',
+          params: returnDate ? {
+            outboundFlight: selectedOutbound,
+            returnFlight: selectedReturn,
+            passengers,
+            isRoundTrip: true,
+          } : {
+            flight: selectedOutbound,
+            passengers,
+            isRoundTrip: false,
+          },
+          // Also store search params to restore FlightResults if needed
+          searchParams: {
+            origin,
+            destination,
+            departDate,
+            returnDate,
+            passengers,
+          },
+        };
+        await AsyncStorage.setItem('pendingNavigation', JSON.stringify(pendingNavigation));
+      } catch (error) {
+        // Continue to login even if storage fails
+      }
       navigation.navigate('Login');
       return;
     }
@@ -244,8 +302,8 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         return;
       }
       navigation.navigate('FlightDetails', {
-        outboundFlight: selectedOutbound,
-        returnFlight: selectedReturn,
+        outboundFlight: { ...selectedOutbound, departureDate: departDate },
+        returnFlight: { ...selectedReturn, departureDate: returnDate },
         passengers,
         isRoundTrip: true,
       });
@@ -256,53 +314,114 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         return;
       }
       navigation.navigate('FlightDetails', {
-        flight: selectedOutbound,
+        flight: { ...selectedOutbound, departureDate: departDate },
         passengers,
         isRoundTrip: false,
       });
     }
   };
 
-  const renderFlightCard = (flight: Flight, isSelected: boolean, onSelect: (flight: Flight) => void) => (
-    <TouchableOpacity
-      key={flight.id}
-      style={[
-        styles.flightCard,
-        isSelected && styles.selectedFlightCard,
-      ]}
-      onPress={() => onSelect(flight)}
-    >
-      <View style={styles.flightCardContent}>
-        {/* Top Row: Times and Price */}
-        <View style={styles.flightTopRow}>
-          <View style={styles.flightTimesRow}>
-            <Text style={styles.flightTimeCompact}>{flight.departureTime}</Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.textSecondary} style={styles.arrowIcon} />
-            <Text style={styles.flightTimeCompact}>{flight.arrivalTime}</Text>
+  // Format time in city timezone (without timezone abbreviation)
+  const formatTimeWithTimezone = (timestamp: string, cityTimezone?: string): string => {
+    if (!timestamp) return '';
+    
+    try {
+      // If it's already just a time (HH:MM), return as is
+      if (timestamp.match(/^\d{2}:\d{2}$/)) {
+        return timestamp;
+      }
+      
+      // Parse UTC timestamp
+      const date = new Date(timestamp);
+      
+      // If timezone is provided, format time in that timezone
+      if (cityTimezone) {
+        return date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: cityTimezone,
+        });
+      }
+      
+      // Fallback to local timezone
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    } catch {
+      return timestamp;
+    }
+  };
+
+  const renderFlightCard = (flight: Flight, isSelected: boolean, onSelect: (flight: Flight) => void) => {
+    // Format times with timezone
+    const departureTimeDisplay = formatTimeWithTimezone(
+      flight.departure_time || flight.departureTime,
+      flight.origin.timezone
+    );
+    const arrivalTimeDisplay = formatTimeWithTimezone(
+      flight.arrival_time || flight.arrivalTime,
+      flight.destination.timezone
+    );
+
+    return (
+      <TouchableOpacity
+        key={flight.id}
+        style={[
+          styles.flightCard,
+          isSelected && styles.selectedFlightCard,
+        ]}
+        onPress={() => onSelect(flight)}
+      >
+        <View style={styles.flightCardContent}>
+          {/* Times and Price Row */}
+          <View style={styles.flightTopSection}>
+            {/* Departure */}
+            <View style={styles.flightTimeSection}>
+              <Text style={styles.flightTimeLarge}>{departureTimeDisplay}</Text>
+              <Text style={styles.flightAirportCode}>{flight.origin.code}</Text>
+            </View>
+
+            {/* Spacer for duration line */}
+            <View style={styles.flightMiddleSpacer} />
+
+            {/* Arrival */}
+            <View style={styles.flightTimeSection}>
+              <Text style={styles.flightTimeLarge}>{arrivalTimeDisplay}</Text>
+              <Text style={styles.flightAirportCode}>{flight.destination.code}</Text>
+            </View>
+
+            {/* Price */}
+            <Text style={styles.flightPrice}>${flight.price}</Text>
           </View>
-          <Text style={styles.flightPrice}>${flight.price}</Text>
+
+          {/* Duration Line */}
+          <View style={styles.flightDurationRow}>
+            <View style={styles.flightDot} />
+            <View style={styles.flightLine} />
+            <View style={styles.flightDurationBadge}>
+              <Text style={styles.flightDuration}>{flight.duration}</Text>
+            </View>
+            <View style={styles.flightLine} />
+            <View style={styles.flightDot} />
+          </View>
+
+          {/* Non-stop label */}
+          <Text style={styles.flightNonStop}>Non-stop</Text>
         </View>
 
-        {/* Bottom Row: Airports and Duration */}
-        <View style={styles.flightBottomRow}>
-          <Text style={styles.flightAirportCompact}>{flight.origin.code}</Text>
-          <View style={styles.arrowContainer}>
-            <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
-            <Text style={styles.durationTextCompact}>{flight.duration}</Text>
+        {/* Selection Status */}
+        {isSelected && (
+          <View style={styles.selectionStatus}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+            <Text style={styles.selectionText}>Selected</Text>
           </View>
-          <Text style={styles.flightAirportCompact}>{flight.destination.code}</Text>
-        </View>
-      </View>
-
-      {/* Selection Status */}
-      {isSelected && (
-        <View style={styles.selectionStatus}>
-          <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-          <Text style={styles.selectionText}>Selected</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -389,7 +508,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
                 {selectedOutbound ? (
                   <View style={styles.miniFlightCard}>
                     <Text style={styles.miniFlightTime}>
-                      {selectedOutbound.departureTime} → {selectedOutbound.arrivalTime}
+                      {formatTimeWithTimezone(selectedOutbound.departure_time || selectedOutbound.departureTime, selectedOutbound.origin.timezone)} → {formatTimeWithTimezone(selectedOutbound.arrival_time || selectedOutbound.arrivalTime, selectedOutbound.destination.timezone)}
                     </Text>
                     <Text style={styles.miniFlightPrice}>${selectedOutbound.price}</Text>
                   </View>
@@ -451,7 +570,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
                 {selectedReturn ? (
                   <View style={styles.miniFlightCard}>
                     <Text style={styles.miniFlightTime}>
-                      {selectedReturn.departureTime} → {selectedReturn.arrivalTime}
+                      {formatTimeWithTimezone(selectedReturn.departure_time || selectedReturn.departureTime, selectedReturn.origin.timezone)} → {formatTimeWithTimezone(selectedReturn.arrival_time || selectedReturn.arrivalTime, selectedReturn.destination.timezone)}
                     </Text>
                     <Text style={styles.miniFlightPrice}>${selectedReturn.price}</Text>
                   </View>
@@ -619,57 +738,70 @@ const styles = StyleSheet.create({
   },
   flightCardContent: {
     flexDirection: 'column',
-    gap: spacing.xs,
   },
-  flightTopRow: {
+  flightTopSection: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    marginBottom: 6,
   },
-  flightTimesRow: {
-    flexDirection: 'row',
+  flightTimeSection: {
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: spacing.xs,
   },
-  flightTimeCompact: {
-    ...typography.body1,
+  flightTimeLarge: {
     color: colors.text,
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 22,
+    lineHeight: 26,
   },
-  arrowIcon: {
-    marginHorizontal: spacing.xs,
+  flightAirportCode: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  flightMiddleSpacer: {
+    flex: 1,
   },
   flightPrice: {
-    ...typography.body1,
     color: colors.primary,
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 18,
+    lineHeight: 22,
+    marginLeft: spacing.md,
   },
-  flightBottomRow: {
+  flightDurationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
+    paddingRight: 70, // Space for the price column
+    marginBottom: 6,
   },
-  flightAirportCompact: {
-    ...typography.body2,
-    color: colors.textSecondary,
-    fontSize: 12,
+  flightDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.textSecondary,
+    opacity: 0.4,
   },
-  arrowContainer: {
+  flightLine: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: spacing.xs,
-    flexDirection: 'column',
-    gap: 2,
+    height: 1,
+    backgroundColor: colors.textSecondary,
+    opacity: 0.3,
   },
-  durationTextCompact: {
-    ...typography.caption,
+  flightDurationBadge: {
+    backgroundColor: colors.surface || '#f5f5f5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
+  },
+  flightDuration: {
     color: colors.textSecondary,
     fontSize: 10,
-    marginTop: 1,
+  },
+  flightNonStop: {
+    color: colors.textSecondary,
+    fontSize: 10,
   },
   selectionStatus: {
     flexDirection: 'row',

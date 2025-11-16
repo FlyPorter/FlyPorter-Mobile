@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,33 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
+import { flightAPI } from '../../services/api';
+
+// Timezone mapping for Canadian airports
+const AIRPORT_TIMEZONES: { [key: string]: string } = {
+  YYZ: 'America/Toronto',      // Toronto
+  YVR: 'America/Vancouver',    // Vancouver
+  YUL: 'America/Toronto',      // Montreal (Eastern Time)
+  YOW: 'America/Toronto',      // Ottawa
+  YYC: 'America/Edmonton',     // Calgary
+  YEG: 'America/Edmonton',     // Edmonton
+  YHZ: 'America/Halifax',      // Halifax
+  YWG: 'America/Winnipeg',     // Winnipeg
+  YQB: 'America/Toronto',      // Quebec City (Eastern Time)
+  YYJ: 'America/Vancouver',    // Victoria (Pacific Time)
+  TEST: 'America/Toronto',     // Test airport
+};
+
+// Helper function to get timezone for an airport code
+const getAirportTimezone = (airportCode: string): string => {
+  return AIRPORT_TIMEZONES[airportCode] || 'America/Toronto'; // Default to Toronto timezone
+};
 
 export default function FlightDetailsScreen({ route, navigation }: any) {
   const { 
@@ -17,12 +40,133 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
     outboundFlight, 
     returnFlight, 
     passengers, 
-    isRoundTrip 
+    isRoundTrip,
+    seatNumber, // Seat number if viewing from booking
+    bookingId, // Booking ID if viewing from booking
   } = route.params;
   const { isAuthenticated } = useAuth();
 
+  const [detailedFlight, setDetailedFlight] = useState<any>(null);
+  const [detailedOutbound, setDetailedOutbound] = useState<any>(null);
+  const [detailedReturn, setDetailedReturn] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
   // Use the appropriate flight(s) based on trip type
   const mainFlight = isRoundTrip ? outboundFlight : flight;
+
+  useEffect(() => {
+    // Only fetch flight details if not viewing from a booking
+    if (!bookingId) {
+      loadFlightDetails();
+    } else {
+      // Viewing from booking - use data from route params
+      setLoading(false);
+    }
+  }, []);
+
+  const loadFlightDetails = async () => {
+    try {
+      setLoading(true);
+      
+      if (isRoundTrip) {
+        // Fetch both outbound and return flight details
+        const [outboundResponse, returnResponse] = await Promise.all([
+          flightAPI.getById(outboundFlight.flight_id || outboundFlight.id),
+          flightAPI.getById(returnFlight.flight_id || returnFlight.id),
+        ]);
+        
+        setDetailedOutbound(outboundResponse.data?.data || outboundResponse.data);
+        setDetailedReturn(returnResponse.data?.data || returnResponse.data);
+      } else {
+        // Fetch single flight details
+        const flightId = flight.flight_id || flight.id;
+        
+        if (!flightId) {
+          // No flight ID available, use cached data
+          console.log('No flight ID available, using cached data from route params');
+          setLoading(false);
+          return;
+        }
+        
+        const response = await flightAPI.getById(flightId);
+        setDetailedFlight(response.data?.data || response.data);
+      }
+      
+      setLoading(false);
+    } catch (error: any) {
+      // Fallback to cached data from previous screen without showing error popup
+      console.log('Failed to load flight details, using cached data:', error.message);
+      setLoading(false);
+    }
+  };
+
+  // Format date or timestamp to display format
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+      let date: Date;
+      
+      // Check if it's just a date string (YYYY-MM-DD) without time
+      // To avoid timezone shifts, parse it as local date
+      if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        date = new Date(year, month - 1, day); // Create as local date
+      } else {
+        // Parse UTC timestamp and convert to local timezone
+        date = new Date(dateString);
+      }
+      
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    } catch {
+      return '';
+    }
+  };
+
+  // Format UTC timestamp to specific city timezone (without timezone abbreviation)
+  const formatTimeInCityTimezone = (timestamp: string, cityTimezone?: string) => {
+    if (!timestamp) return '';
+    try {
+      // If it's already just a time (HH:MM), return as is
+      if (timestamp.match(/^\d{2}:\d{2}$/)) {
+        return timestamp;
+      }
+      
+      // Parse UTC timestamp
+      const date = new Date(timestamp);
+      
+      // If timezone is provided (e.g., 'America/Toronto', 'America/Vancouver')
+      if (cityTimezone) {
+        return date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: cityTimezone,
+        });
+      }
+      
+      // Fallback to local timezone
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: false,
+      });
+    } catch {
+      return timestamp;
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading flight details...</Text>
+      </View>
+    );
+  }
 
   const handleBookFlight = () => {
     // Allow unauthenticated users to proceed - they'll be prompted to login at payment
@@ -92,7 +236,12 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                 <View style={styles.routeStop}>
                   <View style={styles.routeDot} />
                   <View style={styles.routeInfo}>
-                    <Text style={styles.routeTime}>{outboundFlight.departureTime}</Text>
+                    <Text style={styles.routeTime}>
+                      {formatTimeInCityTimezone(
+                        detailedOutbound?.departure_time || outboundFlight.departure_time || outboundFlight.departureTime,
+                        detailedOutbound?.origin?.timezone || outboundFlight.origin?.timezone || getAirportTimezone(outboundFlight.origin.code)
+                      )}
+                    </Text>
                     <Text style={styles.routeCode}>{outboundFlight.origin.code}</Text>
                     <Text style={styles.routeName}>{outboundFlight.origin.name}</Text>
                     <Text style={styles.routeCity}>{outboundFlight.origin.city}</Text>
@@ -110,7 +259,12 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                 <View style={styles.routeStop}>
                   <View style={styles.routeDot} />
                   <View style={styles.routeInfo}>
-                    <Text style={styles.routeTime}>{outboundFlight.arrivalTime}</Text>
+                    <Text style={styles.routeTime}>
+                      {formatTimeInCityTimezone(
+                        detailedOutbound?.arrival_time || outboundFlight.arrival_time || outboundFlight.arrivalTime,
+                        detailedOutbound?.destination?.timezone || outboundFlight.destination?.timezone || getAirportTimezone(outboundFlight.destination.code)
+                      )}
+                    </Text>
                     <Text style={styles.routeCode}>{outboundFlight.destination.code}</Text>
                     <Text style={styles.routeName}>{outboundFlight.destination.name}</Text>
                     <Text style={styles.routeCity}>{outboundFlight.destination.city}</Text>
@@ -127,7 +281,12 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                 <View style={styles.routeStop}>
                   <View style={styles.routeDot} />
                   <View style={styles.routeInfo}>
-                    <Text style={styles.routeTime}>{returnFlight.departureTime}</Text>
+                    <Text style={styles.routeTime}>
+                      {formatTimeInCityTimezone(
+                        detailedReturn?.departure_time || returnFlight.departure_time || returnFlight.departureTime,
+                        detailedReturn?.origin?.timezone || returnFlight.origin?.timezone || getAirportTimezone(returnFlight.origin.code)
+                      )}
+                    </Text>
                     <Text style={styles.routeCode}>{returnFlight.origin.code}</Text>
                     <Text style={styles.routeName}>{returnFlight.origin.name}</Text>
                     <Text style={styles.routeCity}>{returnFlight.origin.city}</Text>
@@ -145,7 +304,12 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                 <View style={styles.routeStop}>
                   <View style={styles.routeDot} />
                   <View style={styles.routeInfo}>
-                    <Text style={styles.routeTime}>{returnFlight.arrivalTime}</Text>
+                    <Text style={styles.routeTime}>
+                      {formatTimeInCityTimezone(
+                        detailedReturn?.arrival_time || returnFlight.arrival_time || returnFlight.arrivalTime,
+                        detailedReturn?.destination?.timezone || returnFlight.destination?.timezone || getAirportTimezone(returnFlight.destination.code)
+                      )}
+                    </Text>
                     <Text style={styles.routeCode}>{returnFlight.destination.code}</Text>
                     <Text style={styles.routeName}>{returnFlight.destination.name}</Text>
                     <Text style={styles.routeCity}>{returnFlight.destination.city}</Text>
@@ -162,7 +326,12 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
               <View style={styles.routeStop}>
                 <View style={styles.routeDot} />
                 <View style={styles.routeInfo}>
-                  <Text style={styles.routeTime}>{mainFlight.departureTime}</Text>
+                  <Text style={styles.routeTime}>
+                    {formatTimeInCityTimezone(
+                      detailedFlight?.departure_time || mainFlight.departure_time || mainFlight.departureTime,
+                      detailedFlight?.origin?.timezone || mainFlight.origin?.timezone || getAirportTimezone(mainFlight.origin.code)
+                    )}
+                  </Text>
                   <Text style={styles.routeCode}>{mainFlight.origin.code}</Text>
                   <Text style={styles.routeName}>{mainFlight.origin.name}</Text>
                   <Text style={styles.routeCity}>{mainFlight.origin.city}</Text>
@@ -180,7 +349,12 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
               <View style={styles.routeStop}>
                 <View style={styles.routeDot} />
                 <View style={styles.routeInfo}>
-                  <Text style={styles.routeTime}>{mainFlight.arrivalTime}</Text>
+                  <Text style={styles.routeTime}>
+                    {formatTimeInCityTimezone(
+                      detailedFlight?.arrival_time || mainFlight.arrival_time || mainFlight.arrivalTime,
+                      detailedFlight?.destination?.timezone || mainFlight.destination?.timezone || getAirportTimezone(mainFlight.destination.code)
+                    )}
+                  </Text>
                   <Text style={styles.routeCode}>{mainFlight.destination.code}</Text>
                   <Text style={styles.routeName}>{mainFlight.destination.name}</Text>
                   <Text style={styles.routeCity}>{mainFlight.destination.city}</Text>
@@ -203,7 +377,10 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                   <Text style={styles.detailLabel}>Depart Date</Text>
                 </View>
                 <Text style={styles.detailValue}>
-                  {outboundFlight.departureDate || 'March 15, 2024'}
+                  {detailedOutbound?.departure_time 
+                    ? formatDate(detailedOutbound.departure_time)
+                    : (outboundFlight.departureDate || formatDate(new Date().toISOString()))
+                  }
                 </Text>
               </View>
 
@@ -220,7 +397,9 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                   <Ionicons name="airplane" size={20} color={colors.textSecondary} />
                   <Text style={styles.detailLabel}>Aircraft</Text>
                 </View>
-                <Text style={styles.detailValue}>Boeing 737-800</Text>
+                <Text style={styles.detailValue}>
+                  {detailedOutbound?.aircraft_type || 'Boeing 737-800'}
+                </Text>
               </View>
 
               <View style={styles.detailRow}>
@@ -228,7 +407,9 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                   <Ionicons name="checkmark-circle" size={20} color={colors.success} />
                   <Text style={styles.detailLabel}>Available Seats</Text>
                 </View>
-                <Text style={styles.detailValue}>{outboundFlight.availableSeats}</Text>
+                <Text style={styles.detailValue}>
+                  {detailedOutbound?.available_seats || outboundFlight.availableSeats}
+                </Text>
               </View>
             </View>
 
@@ -242,7 +423,10 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                   <Text style={styles.detailLabel}>Return Date</Text>
                 </View>
                 <Text style={styles.detailValue}>
-                  {returnFlight.departureDate || 'March 20, 2024'}
+                  {detailedReturn?.departure_time 
+                    ? formatDate(detailedReturn.departure_time)
+                    : (returnFlight.departureDate || formatDate(new Date().toISOString()))
+                  }
                 </Text>
               </View>
 
@@ -259,7 +443,9 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                   <Ionicons name="airplane" size={20} color={colors.textSecondary} />
                   <Text style={styles.detailLabel}>Aircraft</Text>
                 </View>
-                <Text style={styles.detailValue}>Boeing 737-800</Text>
+                <Text style={styles.detailValue}>
+                  {detailedReturn?.aircraft_type || 'Boeing 737-800'}
+                </Text>
               </View>
 
               <View style={styles.detailRow}>
@@ -267,7 +453,9 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                   <Ionicons name="checkmark-circle" size={20} color={colors.success} />
                   <Text style={styles.detailLabel}>Available Seats</Text>
                 </View>
-                <Text style={styles.detailValue}>{returnFlight.availableSeats}</Text>
+                <Text style={styles.detailValue}>
+                  {detailedReturn?.available_seats || returnFlight.availableSeats}
+                </Text>
               </View>
             </View>
           </>
@@ -281,7 +469,10 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                 <Text style={styles.detailLabel}>Date</Text>
               </View>
               <Text style={styles.detailValue}>
-                {flight.departureDate || 'March 15, 2024'}
+                {detailedFlight?.departure_time 
+                  ? formatDate(detailedFlight.departure_time)
+                  : (flight.departureDate || formatDate(new Date().toISOString()))
+                }
               </Text>
             </View>
 
@@ -298,15 +489,21 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
                 <Ionicons name="airplane" size={20} color={colors.textSecondary} />
                 <Text style={styles.detailLabel}>Aircraft</Text>
               </View>
-              <Text style={styles.detailValue}>Boeing 737-800</Text>
+              <Text style={styles.detailValue}>
+                {detailedFlight?.aircraft_type || 'Boeing 737-800'}
+              </Text>
             </View>
 
             <View style={styles.detailRow}>
               <View style={styles.detailItem}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                <Text style={styles.detailLabel}>Available Seats</Text>
+                <Text style={styles.detailLabel}>
+                  {seatNumber ? 'Seat Number' : 'Available Seats'}
+                </Text>
               </View>
-              <Text style={styles.detailValue}>{mainFlight.availableSeats}</Text>
+              <Text style={styles.detailValue}>
+                {seatNumber || (detailedFlight?.available_seats ?? mainFlight.availableSeats) || 'N/A'}
+              </Text>
             </View>
           </View>
         )}
@@ -342,27 +539,29 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Book Button */}
-      <View style={styles.footer}>
-        <View style={styles.footerPrice}>
-          <Text style={styles.footerPriceLabel}>Total</Text>
-          <Text style={styles.footerPriceAmount}>
-            ${isRoundTrip 
-              ? ((outboundFlight.price + returnFlight.price) * passengers).toFixed(2)
-              : (flight.price * passengers).toFixed(2)
-            }
-          </Text>
+      {/* Book Button - Only show if not viewing from booking */}
+      {!bookingId && (
+        <View style={styles.footer}>
+          <View style={styles.footerPrice}>
+            <Text style={styles.footerPriceLabel}>Total</Text>
+            <Text style={styles.footerPriceAmount}>
+              ${isRoundTrip 
+                ? ((outboundFlight.price + returnFlight.price) * passengers).toFixed(2)
+                : (flight.price * passengers).toFixed(2)
+              }
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.bookButton}
+            onPress={handleBookFlight}
+          >
+            <Text style={styles.bookButtonText}>
+              Select Seats
+            </Text>
+            <Ionicons name="arrow-forward" size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.bookButton}
-          onPress={handleBookFlight}
-        >
-          <Text style={styles.bookButtonText}>
-            Select Seats
-          </Text>
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      )}
     </View>
   );
 }
@@ -371,6 +570,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    ...typography.body1,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
   },
   content: {
     flex: 1,

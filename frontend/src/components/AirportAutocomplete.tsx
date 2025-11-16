@@ -25,6 +25,7 @@ interface AirportAutocompleteProps {
   label?: string;
   style?: any;
   compact?: boolean;
+  alignSuggestions?: 'left' | 'right';
 }
 
 export default function AirportAutocomplete({
@@ -34,6 +35,7 @@ export default function AirportAutocomplete({
   label,
   style,
   compact = false,
+  alignSuggestions = 'left',
 }: AirportAutocompleteProps) {
   const [airports, setAirports] = useState<Airport[]>([]);
   const [filteredAirports, setFilteredAirports] = useState<Airport[]>([]);
@@ -157,16 +159,15 @@ export default function AirportAutocomplete({
         <View style={styles.suggestionHeader}>
           <Text style={styles.airportCode}>{item.airport_code}</Text>
           <View style={styles.suggestionTextContainer}>
-            <Text style={styles.airportName} numberOfLines={1} ellipsizeMode="tail">
-              {item.airport_name}
-            </Text>
-            <Text style={styles.cityName} numberOfLines={1} ellipsizeMode="tail">
+            <Text style={styles.cityName}>
               {item.city_name}
+            </Text>
+            <Text style={styles.airportName} numberOfLines={2} ellipsizeMode="tail">
+              {item.airport_name}
             </Text>
           </View>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
     </TouchableOpacity>
   );
 
@@ -175,7 +176,25 @@ export default function AirportAutocomplete({
   return (
     <View style={[styles.container, compact && styles.compactContainer, style]}>
       {label && !compact && <Text style={styles.label}>{label}</Text>}
-      {compact && value && !isEditing && isAirportFormat(value) ? (
+      {compact && !isEditing && (!value || !isAirportFormat(value)) ? (
+        <TouchableOpacity
+          style={styles.compactDisplay}
+          onPress={() => {
+            setIsEditing(true);
+            setTimeout(() => {
+              inputRef.current?.focus();
+            }, 50);
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.compactPlaceholderLine1}>
+            {placeholder.split(' ')[0]}
+          </Text>
+          <Text style={styles.compactPlaceholderLine2}>
+            {placeholder.split(' ').slice(1).join(' ')}
+          </Text>
+        </TouchableOpacity>
+      ) : compact && value && !isEditing && isAirportFormat(value) ? (
         <TouchableOpacity
           style={styles.compactDisplay}
           onPress={() => {
@@ -196,7 +215,8 @@ export default function AirportAutocomplete({
           <TextInput
             ref={inputRef}
             style={[styles.input, compact && styles.compactInput]}
-            placeholder={placeholder}
+            placeholder={compact ? placeholder.replace(' ', '\n') : placeholder}
+            placeholderTextColor={colors.textSecondary}
             value={value}
             onChangeText={(text) => {
               onChange(text);
@@ -204,6 +224,8 @@ export default function AirportAutocomplete({
               // Suggestions will be shown automatically when text is entered via useEffect
             }}
             autoCapitalize="words"
+            multiline={compact}
+            numberOfLines={compact ? 2 : 1}
             onFocus={() => {
               setIsEditing(true);
               // Always show suggestions when focused (useEffect will handle the logic)
@@ -229,7 +251,10 @@ export default function AirportAutocomplete({
       ) : null}
 
       {showSuggestions && filteredAirports.length > 0 && (
-        <View style={styles.suggestionsContainer}>
+        <View style={[
+          styles.suggestionsContainer,
+          alignSuggestions === 'right' ? styles.suggestionsContainerRight : styles.suggestionsContainerLeft
+        ]}>
           <View style={styles.suggestionsList}>
             {filteredAirports.map((item) => (
               <View key={item.airport_code}>
@@ -247,9 +272,11 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
     zIndex: 1,
+    overflow: 'visible',
   },
   compactContainer: {
     flex: 1,
+    overflow: 'visible',
   },
   compactDisplay: {
     flex: 1,
@@ -264,12 +291,25 @@ const styles = StyleSheet.create({
   compactCity: {
     ...typography.body2,
     color: colors.textSecondary,
+    flexWrap: 'wrap',
+  },
+  compactPlaceholderLine1: {
+    ...typography.body1,
+    fontWeight: '400',
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  compactPlaceholderLine2: {
+    ...typography.body1,
+    fontWeight: '400',
+    color: colors.textSecondary,
   },
   compactInput: {
     padding: spacing.sm,
-    minHeight: 0,
+    minHeight: 50,
     borderWidth: 0,
     backgroundColor: 'transparent',
+    textAlignVertical: 'top',
   },
   label: {
     ...typography.body2,
@@ -298,14 +338,13 @@ const styles = StyleSheet.create({
   suggestionsContainer: {
     position: 'absolute',
     top: '100%',
-    left: 0,
-    right: 0,
     marginTop: spacing.xs,
     backgroundColor: '#fff',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
     maxHeight: 300,
+    minWidth: 300,
     zIndex: 1000,
     ...Platform.select({
       ios: {
@@ -319,23 +358,30 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  suggestionsContainerLeft: {
+    left: 0,
+  },
+  suggestionsContainerRight: {
+    right: 0,
+  },
   suggestionsList: {
     maxHeight: 300,
   },
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    minWidth: 300,
   },
   suggestionContent: {
     flex: 1,
+    minWidth: 0,
   },
   suggestionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
   airportCode: {
@@ -347,16 +393,21 @@ const styles = StyleSheet.create({
   suggestionTextContainer: {
     flex: 1,
     flexDirection: 'column',
+    marginRight: spacing.xs,
+    minWidth: 0,
   },
   airportName: {
-    ...typography.body2,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  cityName: {
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: 2,
+    lineHeight: 16,
+    flexShrink: 1,
+  },
+  cityName: {
+    ...typography.body2,
+    color: colors.text,
+    fontWeight: '600',
+    flexShrink: 1,
   },
 });
 
