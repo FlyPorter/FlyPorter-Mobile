@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
-import { bookingAPI, paymentAPI } from '../../services/api';
+import { bookingAPI, paymentAPI, profileAPI } from '../../services/api';
 
 export default function PaymentScreen({ route, navigation }: any) {
   const { 
@@ -35,7 +35,7 @@ export default function PaymentScreen({ route, navigation }: any) {
     newSeatNumbers, // New seats
     priceDifference, // Price difference for upgrade
   } = route.params;
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
@@ -55,6 +55,61 @@ export default function PaymentScreen({ route, navigation }: any) {
         (returnFlight.price * passengers * (returnSeatModifier || 1.0))
       )
     : (flight.price * passengers) * (seatPriceModifier || 1.0);
+
+  const deriveFallbackCardName = () => {
+    if (user?.name?.trim()) {
+      return user.name.trim();
+    }
+    if (passengerData && passengerData.length > 0) {
+      const leadPassenger = passengerData[0];
+      const combined = `${leadPassenger.firstName || ''} ${leadPassenger.lastName || ''}`.trim();
+      if (combined) {
+        return combined;
+      }
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return '';
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadCardholderName = async () => {
+      const fallbackName = deriveFallbackCardName();
+      if (isMounted) {
+        setCardName(fallbackName);
+      }
+
+      if (!isAuthenticated) {
+        return;
+      }
+
+      try {
+        const response = await profileAPI.get();
+        const profileData = response.data?.data || response.data;
+        const profileName =
+          profileData?.customer_info?.full_name ||
+          profileData?.full_name ||
+          profileData?.name ||
+          '';
+        if (profileName && isMounted) {
+          setCardName(profileName);
+        } else if (isMounted && fallbackName) {
+          setCardName(fallbackName);
+        }
+      } catch (error) {
+        if (isMounted && fallbackName) {
+          setCardName(fallbackName);
+        }
+      }
+    };
+
+    loadCardholderName();
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, user?.name, user?.email, passengerData]);
 
   const handlePayment = async () => {
     // Check authentication first
@@ -364,11 +419,11 @@ export default function PaymentScreen({ route, navigation }: any) {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Cardholder Name *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, styles.disabledInput]}
               placeholder="John Doe"
               value={cardName}
-              onChangeText={setCardName}
-              autoCapitalize="words"
+              editable={false}
+              selectTextOnFocus={false}
             />
           </View>
 
@@ -616,6 +671,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     minHeight: 50,
     lineHeight: 22,
+  },
+  disabledInput: {
+    backgroundColor: colors.surface,
+    color: colors.text,
+    opacity: 0.7,
   },
   inputWithIcon: {
     flexDirection: 'row',

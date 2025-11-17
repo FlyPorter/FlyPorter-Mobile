@@ -41,6 +41,11 @@ export default function DatePicker({
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const yearScrollViewRef = useRef<ScrollView>(null);
 
+  // Sync internal state when parent value changes
+  useEffect(() => {
+    setSelectedDate(value || '');
+  }, [value]);
+
   // Reset pickers when calendar modal opens
   useEffect(() => {
     if (showCalendar) {

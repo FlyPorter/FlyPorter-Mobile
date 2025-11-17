@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import DatePicker from '../../components/DatePicker';
+import { useAuth } from '../../context/AuthContext';
+import { profileAPI } from '../../services/api';
 
 interface PassengerInfo {
   firstName: string;
@@ -35,6 +37,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
     isRoundTrip 
   } = route.params;
   
+  const { isAuthenticated } = useAuth();
   const [passengerData, setPassengerData] = useState<PassengerInfo[]>(
     Array(passengers).fill(null).map(() => ({
       firstName: '',
@@ -43,6 +46,62 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
       dateOfBirth: '',
     }))
   );
+  const [profileDetails, setProfileDetails] = useState<PassengerInfo | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const formatDateForInput = (dateValue?: string | Date | null) => {
+    if (!dateValue) return '';
+    try {
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
+  const loadProfileDetails = async () => {
+    if (!isAuthenticated) return;
+    setProfileLoading(true);
+    try {
+      const response = await profileAPI.get();
+      const profileData = response.data?.data || response.data;
+      if (profileData) {
+        const fullName =
+          profileData.customer_info?.full_name ||
+          profileData.full_name ||
+          profileData.name ||
+          '';
+        let firstName = '';
+        let lastName = '';
+        if (fullName.trim()) {
+          const nameParts = fullName.trim().split(/\s+/);
+          firstName = nameParts.shift() || '';
+          lastName = nameParts.join(' ');
+        }
+        const passport =
+          profileData.customer_info?.passport_number ||
+          profileData.passport_number ||
+          '';
+        const dob = formatDateForInput(profileData.customer_info?.date_of_birth);
+
+        setProfileDetails({
+          firstName,
+          lastName,
+          passportNumber: passport || '',
+          dateOfBirth: dob,
+        });
+      }
+    } catch (error) {
+      console.warn('Unable to load profile for autofill', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProfileDetails();
+  }, [isAuthenticated]);
+
 
   const passengersLabel = `${passengers} ${passengers === 1 ? 'passenger' : 'passengers'}`;
 
@@ -90,6 +149,30 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
     updated[index][field] = value;
     setPassengerData(updated);
   };
+
+  const applyProfileToPassenger = () => {
+    if (!profileDetails) return;
+    setPassengerData((current) => {
+      const updated = [...current];
+      const target = { ...updated[0] };
+      if (profileDetails.firstName) {
+        target.firstName = profileDetails.firstName;
+      }
+      if (profileDetails.lastName) {
+        target.lastName = profileDetails.lastName;
+      }
+      if (profileDetails.passportNumber) {
+        target.passportNumber = profileDetails.passportNumber;
+      }
+      if (profileDetails.dateOfBirth) {
+        target.dateOfBirth = profileDetails.dateOfBirth;
+      }
+      updated[0] = target;
+      return updated;
+    });
+  };
+
+  const shouldShowProfileButton = isAuthenticated && profileDetails && passengers >= 1;
 
   const handleContinue = () => {
     // Validate all fields
@@ -155,6 +238,31 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
                 )}
               </View>
             </View>
+
+            {index === 0 && shouldShowProfileButton && (
+              <TouchableOpacity
+                style={[
+                  styles.profileFillButton,
+                  profileLoading && styles.profileFillButtonDisabled,
+                ]}
+                onPress={applyProfileToPassenger}
+                disabled={profileLoading}
+              >
+                <Ionicons
+                  name="person-circle"
+                  size={20}
+                  color={profileLoading ? colors.disabled : colors.primary}
+                />
+                <Text
+                  style={[
+                    styles.profileFillButtonText,
+                    profileLoading && styles.profileFillButtonTextDisabled,
+                  ]}
+                >
+                  {profileLoading ? 'Loading profile...' : 'Use My Profile'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>First Name *</Text>
@@ -387,6 +495,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     minHeight: 50,
     lineHeight: 22,
+  },
+  profileFillButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    alignSelf: 'flex-start',
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    backgroundColor: 'rgba(200,16,46,0.08)',
+  },
+  profileFillButtonDisabled: {
+    backgroundColor: colors.surface,
+  },
+  profileFillButtonText: {
+    ...typography.body2,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  profileFillButtonTextDisabled: {
+    color: colors.textSecondary,
   },
   summaryCard: {
     backgroundColor: '#fff',
