@@ -357,8 +357,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md + 2,
     backgroundColor: colors.surface,
+    minHeight: 48,
+    lineHeight: 22,
   },
   inputDisabled: {
     backgroundColor: colors.surface,

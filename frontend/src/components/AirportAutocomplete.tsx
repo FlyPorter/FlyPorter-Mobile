@@ -350,12 +350,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   compactInput: {
-    padding: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     minHeight: 50,
     borderWidth: 0,
     backgroundColor: 'transparent',
     textAlignVertical: 'top',
     textAlign: 'center',
+    lineHeight: 22,
   },
   label: {
     ...typography.body2,
@@ -371,8 +373,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md + 2,
     backgroundColor: colors.surface,
+    minHeight: 48,
+    lineHeight: 22,
   },
   loaderContainer: {
     position: 'absolute',

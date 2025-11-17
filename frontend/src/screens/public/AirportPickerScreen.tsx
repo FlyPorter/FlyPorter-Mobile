@@ -245,6 +245,9 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.sm,
     ...typography.body1,
+    paddingVertical: spacing.xs + 2,
+    lineHeight: 22,
+    minHeight: 32,
   },
   list: {
     flexGrow: 0,

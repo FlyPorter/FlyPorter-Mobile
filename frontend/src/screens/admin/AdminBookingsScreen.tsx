@@ -366,6 +366,8 @@ const styles = StyleSheet.create({
     ...typography.body1,
     flex: 1,
     paddingVertical: spacing.md,
+    lineHeight: 22,
+    minHeight: 48,
   },
   filterTabs: {
     backgroundColor: '#fff',
