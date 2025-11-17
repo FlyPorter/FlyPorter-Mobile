@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "FlyPorter",
-    "slug": "flyporter-mobile",
+    "slug": "flyporter",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,8 +20,10 @@
       "icon": "./assets/icon.png",
       "infoPlist": {
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -30,7 +32,6 @@
         "backgroundColor": "#000000"
       },
       "package": "com.flyporter.mobile",
-      "useNextNotificationsApi": true,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
@@ -58,7 +59,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "41db8150-1fcf-4ca7-8df5-326983ed87c2"
+        "projectId": "d24d8c01-c9a6-4c03-ba07-0c858aa49836"
       }
     }
   }
