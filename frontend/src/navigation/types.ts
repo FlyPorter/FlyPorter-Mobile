@@ -103,6 +103,7 @@ export type SearchStackParamList = {
     type: 'departure' | 'arrival';
     currentValue?: string;
     onSelect?: (value: string) => void;
+    returnRouteName?: string;
   };
 };
 

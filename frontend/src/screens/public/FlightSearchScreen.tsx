@@ -155,6 +155,7 @@ export default function FlightSearchScreen({ navigation, route }: any) {
     navigation.navigate('AirportPicker', {
       type,
       currentValue: type === 'departure' ? origin : destination,
+      returnRouteName: route?.name || 'Search',
     });
   };
 

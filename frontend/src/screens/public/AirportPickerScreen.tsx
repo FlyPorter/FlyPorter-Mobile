@@ -27,6 +27,7 @@ interface AirportPickerScreenProps {
     params: {
       type: 'departure' | 'arrival';
       currentValue?: string;
+      returnRouteName?: string;
     };
   };
 }
@@ -41,7 +42,7 @@ const parseValue = (val?: string) => {
 };
 
 export default function AirportPickerScreen({ navigation, route }: AirportPickerScreenProps) {
-  const { type, currentValue } = route.params;
+  const { type, currentValue, returnRouteName } = route.params;
   const [airports, setAirports] = useState<Airport[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -75,8 +76,9 @@ export default function AirportPickerScreen({ navigation, route }: AirportPicker
 
   const handleSelectAirport = (airport: Airport) => {
     const displayText = `${airport.city_name} (${airport.airport_code})`;
+    const targetRouteName = returnRouteName || 'Search';
     navigation.navigate({
-      name: 'Search',
+      name: targetRouteName,
       params: {
         selectedAirport: {
           type,
