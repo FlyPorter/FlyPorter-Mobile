@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import { profileAPI } from '../../services/api';
+import DatePicker from '../../components/DatePicker';
 
 export default function ProfileScreen() {
   const { user, logout, isAdmin } = useAuth();
@@ -21,12 +22,38 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [passport, setPassport] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Load profile data when component mounts
     loadProfile();
   }, []);
+
+  const formatDateForInput = (dateValue?: string | Date | null) => {
+    if (!dateValue) return '';
+    try {
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
+  const formatDateForDisplay = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString + 'T00:00:00');
+      return date.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
   const loadProfile = async () => {
     try {
@@ -38,6 +65,7 @@ export default function ProfileScreen() {
         const loadedEmail = profileData.email || user?.email || '';
         let loadedPhone = profileData.customer_info?.phone || profileData.phone || profileData.phone_number || user?.phone || '';
         const loadedPassport = profileData.customer_info?.passport_number || '';
+        const loadedDob = formatDateForInput(profileData.customer_info?.date_of_birth);
         
         // Strip non-numeric characters from phone number (remove +, spaces, dashes, etc.)
         if (loadedPhone) {
@@ -48,6 +76,7 @@ export default function ProfileScreen() {
         setEmail(loadedEmail);
         setPhone(loadedPhone);
         setPassport(loadedPassport);
+        setDateOfBirth(loadedDob);
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -70,6 +99,7 @@ export default function ProfileScreen() {
         full_name: name.trim(),
         phone: phone.trim() || undefined,
         passport_number: passport.trim() || undefined,
+        date_of_birth: dateOfBirth || undefined,
       });
       
       const responseData = response.data;
@@ -202,6 +232,25 @@ export default function ProfileScreen() {
               autoCapitalize="characters"
               maxLength={9}
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Date of Birth</Text>
+            {editing ? (
+              <DatePicker
+                value={dateOfBirth}
+                onChange={setDateOfBirth}
+                placeholder="Select date"
+                minimumDate="1949-10-01"
+                maximumDate={new Date().toISOString().split('T')[0]}
+              />
+            ) : (
+              <TextInput
+                style={[styles.input, styles.inputDisabled]}
+                value={formatDateForDisplay(dateOfBirth)}
+                editable={false}
+              />
+            )}
           </View>
         </View>
       </View>

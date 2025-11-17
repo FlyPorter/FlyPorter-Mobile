@@ -120,7 +120,7 @@ model CustomerInfo {
   user_id                 Int      @unique
   full_name               String   @db.VarChar(100)
   phone                   String?  @db.VarChar(20)
-  passport_number         String   @db.VarChar(30)
+  passport_number         String?  @db.VarChar(30)
   date_of_birth           DateTime @db.Date
   emergency_contact_name  String?  @db.VarChar(100)
   emergency_contact_phone String?  @db.VarChar(20)

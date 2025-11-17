@@ -10,7 +10,7 @@ export interface ProfileData {
         info_id: number;
         full_name: string;
         phone: string | null;
-        passport_number: string;
+        passport_number: string | null;
         date_of_birth: Date;
         emergency_contact_name: string | null;
         emergency_contact_phone: string | null;
@@ -21,7 +21,7 @@ export interface UpdateProfileInput {
     email?: string;
     full_name?: string;
     phone?: string | null;
-    passport_number?: string;
+    passport_number?: string | null;
     date_of_birth?: Date;
     emergency_contact_name?: string | null;
     emergency_contact_phone?: string | null;
