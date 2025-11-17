@@ -11,95 +11,88 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography } from '../../theme/theme';
+import { adminAPI, bookingAPI } from '../../services/api';
+import { format } from 'date-fns';
 
 interface Booking {
-  id: string;
-  bookingReference: string;
-  status: 'confirmed' | 'cancelled' | 'completed';
-  customerName: string;
-  customerEmail: string;
-  flight: {
-    flightNumber: string;
-    route: string;
+  booking_id: number;
+  confirmation_code: string | null;
+  status: 'confirmed' | 'cancelled';
+  total_price: string;
+  booking_time: string;
+  user?: {
+    email: string;
+    customer_info?: {
+      full_name: string;
+    } | null;
   };
-  passengers: number;
-  totalAmount: number;
-  bookingDate: string;
+  flight?: {
+    flight_id: number;
+    departure_time: string;
+    route?: {
+      origin_airport?: {
+        airport_code: string;
+      };
+      destination_airport?: {
+        airport_code: string;
+      };
+    };
+    airline?: {
+      airline_code: string;
+    };
+  };
+  seat?: {
+    seat_number: string;
+  };
 }
 
 export default function AdminBookingsScreen() {
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'confirmed' | 'cancelled' | 'completed'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'confirmed' | 'cancelled'>('all');
 
+  // Load data on initial mount
   useEffect(() => {
     loadBookings();
   }, []);
 
+  // Refresh data whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadBookings();
+    }, [])
+  );
+
   const loadBookings = async () => {
     try {
-      // Mock data for demonstration
-      // TODO: Replace with actual API call
-      setTimeout(() => {
-        const mockBookings: Booking[] = [
-          {
-            id: '1',
-            bookingReference: 'FP12345678',
-            status: 'confirmed',
-            customerName: 'John Doe',
-            customerEmail: 'john@example.com',
-            flight: {
-              flightNumber: 'FP101',
-              route: 'YYZ → YVR',
-            },
-            passengers: 2,
-            totalAmount: 689.40,
-            bookingDate: '2024-03-01',
-          },
-          {
-            id: '2',
-            bookingReference: 'FP87654321',
-            status: 'confirmed',
-            customerName: 'Jane Smith',
-            customerEmail: 'jane@example.com',
-            flight: {
-              flightNumber: 'FP202',
-              route: 'YUL → YYZ',
-            },
-            passengers: 1,
-            totalAmount: 344.70,
-            bookingDate: '2024-03-02',
-          },
-          {
-            id: '3',
-            bookingReference: 'FP11223344',
-            status: 'cancelled',
-            customerName: 'Bob Johnson',
-            customerEmail: 'bob@example.com',
-            flight: {
-              flightNumber: 'FP303',
-              route: 'YVR → YYC',
-            },
-            passengers: 3,
-            totalAmount: 1034.10,
-            bookingDate: '2024-02-28',
-          },
-        ];
-        setBookings(mockBookings);
-        setLoading(false);
-      }, 1000);
-    } catch (error) {
+      setLoading(true);
+      const response = await adminAPI.getAllBookings();
+      
+      if (response.data.success) {
+        setBookings(response.data.data || []);
+      } else {
+        Alert.alert('Error', 'Failed to load bookings');
+      }
+    } catch (error: any) {
       console.error('Error loading bookings:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to load bookings';
+      Alert.alert('Error', errorMessage);
+    } finally {
       setLoading(false);
     }
   };
 
   const handleCancelBooking = (booking: Booking) => {
+    const customerName = booking.user?.customer_info?.full_name || booking.user?.email || 'Unknown';
+    const bookingRef = booking.confirmation_code || `#${booking.booking_id}`;
+    
     Alert.alert(
       'Cancel Booking',
-      `Are you sure you want to cancel booking ${booking.bookingReference} for ${booking.customerName}?`,
+      `Are you sure you want to cancel booking ${bookingRef} for ${customerName}?`,
       [
         { text: 'No', style: 'cancel' },
         {
@@ -107,11 +100,16 @@ export default function AdminBookingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // TODO: Call API to cancel booking
-              Alert.alert('Success', 'Booking cancelled successfully. Customer will be notified.');
+              await adminAPI.cancelBooking(booking.booking_id.toString());
+              Alert.alert(
+                'Success', 
+                'Booking cancelled successfully. Customer has been notified via notification.'
+              );
               loadBookings();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to cancel booking');
+            } catch (error: any) {
+              console.error('Error cancelling booking:', error);
+              const errorMessage = error.response?.data?.message || 'Failed to cancel booking';
+              Alert.alert('Error', errorMessage);
             }
           },
         },
@@ -120,10 +118,14 @@ export default function AdminBookingsScreen() {
   };
 
   const filteredBookings = bookings.filter(booking => {
+    const customerName = booking.user?.customer_info?.full_name || '';
+    const customerEmail = booking.user?.email || '';
+    const bookingRef = booking.confirmation_code || booking.booking_id.toString();
+    
     const matchesSearch = 
-      booking.bookingReference.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.customerEmail.toLowerCase().includes(searchQuery.toLowerCase());
+      bookingRef.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customerEmail.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesFilter = filterStatus === 'all' || booking.status === filterStatus;
     
@@ -131,71 +133,88 @@ export default function AdminBookingsScreen() {
   });
 
   const renderBookingCard = (booking: Booking) => {
-    const statusColor =
-      booking.status === 'confirmed' ? colors.success :
-      booking.status === 'cancelled' ? colors.error :
-      colors.textSecondary;
+    const statusColor = booking.status === 'confirmed' ? colors.success : colors.error;
+    const customerName = booking.user?.customer_info?.full_name || 'No name provided';
+    const customerEmail = booking.user?.email || 'No email';
+    const bookingRef = booking.confirmation_code || `#${booking.booking_id}`;
+    const flightNumber = `${booking.flight?.airline?.airline_code || 'N/A'}${booking.flight?.flight_id || ''}`;
+    const route = `${booking.flight?.route?.origin_airport?.airport_code || 'N/A'} → ${booking.flight?.route?.destination_airport?.airport_code || 'N/A'}`;
+    const totalAmount = parseFloat(booking.total_price || '0');
+    const departureDate = new Date(booking.flight?.departure_time || Date.now());
+    const bookingDate = new Date(booking.booking_time);
 
     return (
-      <View key={booking.id} style={styles.bookingCard}>
-        {/* Status Badge */}
-        <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
-          <Text style={[styles.statusText, { color: statusColor }]}>
-            {booking.status.toUpperCase()}
-          </Text>
-        </View>
+      <View key={booking.booking_id} style={styles.bookingCard}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('AdminBookingDetails', { bookingId: booking.booking_id })}
+        >
+          {/* Status Badge */}
+          <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {booking.status.toUpperCase()}
+            </Text>
+          </View>
 
-        {/* Booking Header */}
-        <View style={styles.bookingHeader}>
-          <View style={styles.customerInfo}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {booking.customerName.charAt(0)}
+          {/* Booking Header */}
+          <View style={styles.bookingHeader}>
+            <View style={styles.customerInfo}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {customerName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.customerDetails}>
+                <Text style={styles.customerName}>{customerName}</Text>
+                <Text style={styles.customerEmail}>{customerEmail}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Booking Details */}
+          <View style={styles.bookingDetails}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Reference:</Text>
+              <Text style={styles.detailValue}>{bookingRef}</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Flight:</Text>
+              <Text style={styles.detailValue}>{flightNumber}</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Route:</Text>
+              <Text style={styles.detailValue}>{route}</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Seat:</Text>
+              <Text style={styles.detailValue}>{booking.seat?.seat_number || 'N/A'}</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Departure:</Text>
+              <Text style={styles.detailValue}>
+                {format(departureDate, 'MMM dd, yyyy • hh:mm a')}
               </Text>
             </View>
-            <View style={styles.customerDetails}>
-              <Text style={styles.customerName}>{booking.customerName}</Text>
-              <Text style={styles.customerEmail}>{booking.customerEmail}</Text>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Amount:</Text>
+              <Text style={[styles.detailValue, styles.amountText]}>
+                ${totalAmount.toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Booked:</Text>
+              <Text style={styles.detailValue}>
+                {format(bookingDate, 'MMM dd, yyyy')}
+              </Text>
             </View>
           </View>
-        </View>
-
-        {/* Booking Details */}
-        <View style={styles.bookingDetails}>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Reference:</Text>
-            <Text style={styles.detailValue}>{booking.bookingReference}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Flight:</Text>
-            <Text style={styles.detailValue}>{booking.flight.flightNumber}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Route:</Text>
-            <Text style={styles.detailValue}>{booking.flight.route}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Passengers:</Text>
-            <Text style={styles.detailValue}>{booking.passengers}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Amount:</Text>
-            <Text style={[styles.detailValue, styles.amountText]}>
-              ${booking.totalAmount.toFixed(2)}
-            </Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Booked:</Text>
-            <Text style={styles.detailValue}>
-              {new Date(booking.bookingDate).toLocaleDateString()}
-            </Text>
-          </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Actions */}
         {booking.status === 'confirmed' && (
@@ -283,19 +302,6 @@ export default function AdminBookingsScreen() {
               ]}
             >
               Cancelled
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterTab, filterStatus === 'completed' && styles.filterTabActive]}
-            onPress={() => setFilterStatus('completed')}
-          >
-            <Text
-              style={[
-                styles.filterTabText,
-                filterStatus === 'completed' && styles.filterTabTextActive,
-              ]}
-            >
-              Completed
             </Text>
           </TouchableOpacity>
         </ScrollView>

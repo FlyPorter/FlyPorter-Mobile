@@ -4,13 +4,15 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, typography } from '../../theme/theme';
+import { flightAPI, adminAPI } from '../../services/api';
 
 interface DashboardStats {
   totalFlights: number;
@@ -29,26 +31,50 @@ export default function AdminDashboardScreen() {
     activeCustomers: 0,
   });
 
+  // Load data on initial mount
   useEffect(() => {
     loadDashboardData();
   }, []);
 
+  // Refresh data whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadDashboardData();
+    }, [])
+  );
+
   const loadDashboardData = async () => {
     try {
-      // Mock data for demonstration
-      // TODO: Replace with actual API call
-      setTimeout(() => {
-        setStats({
-          totalFlights: 156,
-          totalBookings: 1243,
-          totalRevenue: 487650,
-          activeCustomers: 892,
-        });
-        setLoading(false);
-        setRefreshing(false);
-      }, 1000);
-    } catch (error) {
+      // Fetch all data in parallel (no /customers endpoint exists, we'll derive from bookings)
+      const [flightsRes, bookingsRes] = await Promise.all([
+        flightAPI.getAll(),
+        adminAPI.getAllBookings(),
+      ]);
+
+      const flights = flightsRes.data.data || [];
+      const bookings = bookingsRes.data.data || [];
+
+      // Calculate total revenue from confirmed bookings
+      const revenue = bookings
+        .filter((b: any) => b.status === 'confirmed')
+        .reduce((sum: number, b: any) => sum + parseFloat(b.total_price || '0'), 0);
+
+      // Count unique customers from bookings
+      const uniqueUserIds = new Set(bookings.map((b: any) => b.user_id));
+      const customerCount = uniqueUserIds.size;
+
+      setStats({
+        totalFlights: flights.length,
+        totalBookings: bookings.length,
+        totalRevenue: revenue,
+        activeCustomers: customerCount,
+      });
+
+      setLoading(false);
+      setRefreshing(false);
+    } catch (error: any) {
       console.error('Error loading dashboard data:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to load dashboard data');
       setLoading(false);
       setRefreshing(false);
     }
@@ -111,69 +137,6 @@ export default function AdminDashboardScreen() {
           <Ionicons name="people" size={32} color="#7B1FA2" />
           <Text style={styles.statValue}>{stats.activeCustomers}</Text>
           <Text style={styles.statLabel}>Customers</Text>
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        
-        <View style={styles.actionGrid}>
-          <TouchableOpacity style={styles.actionCard}>
-            <View style={styles.actionIcon}>
-              <Ionicons name="add-circle" size={28} color={colors.primary} />
-            </View>
-            <Text style={styles.actionText}>Add Flight</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <View style={styles.actionIcon}>
-              <Ionicons name="location" size={28} color={colors.primary} />
-            </View>
-            <Text style={styles.actionText}>Add Airport</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <View style={styles.actionIcon}>
-              <Ionicons name="business" size={28} color={colors.primary} />
-            </View>
-            <Text style={styles.actionText}>Add Airline</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <View style={styles.actionIcon}>
-              <Ionicons name="map" size={28} color={colors.primary} />
-            </View>
-            <Text style={styles.actionText}>Add Route</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Recent Bookings */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Bookings</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAllText}>See All</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.bookingsList}>
-          {[1, 2, 3, 4].map((item) => (
-            <View key={item} style={styles.bookingItem}>
-              <View style={styles.bookingIcon}>
-                <Ionicons name="ticket" size={24} color={colors.primary} />
-              </View>
-              <View style={styles.bookingInfo}>
-                <Text style={styles.bookingReference}>FP1234567{item}</Text>
-                <Text style={styles.bookingRoute}>YYZ → YVR</Text>
-              </View>
-              <View style={styles.bookingMeta}>
-                <Text style={styles.bookingAmount}>$344.70</Text>
-                <Text style={styles.bookingTime}>2h ago</Text>
-              </View>
-            </View>
-          ))}
         </View>
       </View>
 
@@ -284,97 +247,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     paddingHorizontal: spacing.md,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
   sectionTitle: {
     ...typography.h4,
     color: colors.text,
     marginBottom: spacing.md,
-  },
-  seeAllText: {
-    ...typography.body2,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  actionCard: {
-    width: '47%',
-    backgroundColor: '#fff',
-    padding: spacing.lg,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  actionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  actionText: {
-    ...typography.body2,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  bookingsList: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  bookingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  bookingIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  bookingInfo: {
-    flex: 1,
-  },
-  bookingReference: {
-    ...typography.body1,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  bookingRoute: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  bookingMeta: {
-    alignItems: 'flex-end',
-  },
-  bookingAmount: {
-    ...typography.body1,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  bookingTime: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
   },
   statusCard: {
     backgroundColor: '#fff',

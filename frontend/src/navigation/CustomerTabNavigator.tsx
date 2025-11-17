@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '../theme/theme';
 
 // Customer screens
@@ -8,8 +9,10 @@ import FlightSearchScreen from '../screens/public/FlightSearchScreen';
 import FlightResultsScreen from '../screens/public/FlightResultsScreen';
 import AirportPickerScreen from '../screens/public/AirportPickerScreen';
 import MyBookingsScreen from '../screens/customer/MyBookingsScreen';
+import NotificationsScreen from '../screens/customer/NotificationsScreen';
 import ProfileScreen from '../screens/customer/ProfileScreen';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useNotifications } from '../context/NotificationContext';
 
 const Tab = createBottomTabNavigator();
 const SearchStack = createStackNavigator();
@@ -50,6 +53,8 @@ function SearchStackNavigator() {
 }
 
 export default function CustomerTabNavigator() {
+  const { unreadCount } = useNotifications();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -60,10 +65,26 @@ export default function CustomerTabNavigator() {
             iconName = focused ? 'search' : 'search-outline';
           } else if (route.name === 'BookingsTab') {
             iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'NotificationsTab') {
+            iconName = focused ? 'notifications' : 'notifications-outline';
           } else if (route.name === 'ProfileTab') {
             iconName = focused ? 'person' : 'person-outline';
           } else {
             iconName = 'home-outline';
+          }
+
+          // Add badge for notifications
+          if (route.name === 'NotificationsTab' && unreadCount > 0) {
+            return (
+              <View>
+                <Ionicons name={iconName} size={size} color={color} />
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              </View>
+            );
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -108,6 +129,21 @@ export default function CustomerTabNavigator() {
         }}
       />
       <Tab.Screen 
+        name="NotificationsTab" 
+        component={NotificationsScreen}
+        options={{ 
+          tabBarLabel: 'Notifications',
+          title: 'Notifications',
+          headerStyle: {
+            backgroundColor: '#EF4444', // Red background
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: '600',
+          },
+        }}
+      />
+      <Tab.Screen 
         name="ProfileTab" 
         component={ProfileScreen}
         options={{ 
@@ -125,4 +161,24 @@ export default function CustomerTabNavigator() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    right: -8,
+    top: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+});
 

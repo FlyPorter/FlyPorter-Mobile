@@ -66,7 +66,16 @@ export type MainStackParamList = {
 export type CustomerTabParamList = {
   SearchTab: undefined;
   BookingsTab: undefined;
+  NotificationsTab: undefined;
   ProfileTab: undefined;
+};
+
+export type CustomerStackParamList = {
+  MyBookings: undefined;
+  BookingDetails: { id: string };
+  FlightDetails: { id: string };
+  Notifications: undefined;
+  Profile: undefined;
 };
 
 export type AdminTabParamList = {

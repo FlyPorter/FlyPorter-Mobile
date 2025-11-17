@@ -28,6 +28,23 @@ export interface UpdateProfileInput {
 }
 
 /**
+ * Register or update push notification token for a user
+ */
+export async function registerPushToken(userId: number, pushToken: string) {
+    return prisma.user.update({
+        where: { user_id: userId },
+        data: {
+            push_token: pushToken,
+            updated_at: new Date(),
+        },
+        select: {
+            user_id: true,
+            push_token: true,
+        },
+    });
+}
+
+/**
  * Get user profile with customer info
  */
 export async function getProfile(userId: number): Promise<ProfileData | null> {

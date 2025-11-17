@@ -33,7 +33,12 @@ export default function AdminTabNavigator() {
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarStyle: {
+          backgroundColor: '#000000', // Black background
+          borderTopColor: '#374151', // Dark gray border
+          borderTopWidth: 1,
+        },
         headerStyle: {
           backgroundColor: colors.primary,
         },

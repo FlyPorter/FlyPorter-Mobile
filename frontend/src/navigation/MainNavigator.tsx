@@ -8,6 +8,7 @@ import AdminTabNavigator from './AdminTabNavigator';
 import FlightResultsScreen from '../screens/public/FlightResultsScreen';
 import FlightDetailsScreen from '../screens/public/FlightDetailsScreen';
 import BookingDetailsScreen from '../screens/customer/BookingDetailsScreen';
+import AdminBookingDetailsScreen from '../screens/admin/AdminBookingDetailsScreen';
 import SeatSelectionScreen from '../screens/booking/SeatSelectionScreen';
 import PassengerInfoScreen from '../screens/booking/PassengerInfoScreen';
 import PaymentScreen from '../screens/booking/PaymentScreen';
@@ -70,6 +71,15 @@ function MainNavigatorContent() {
       <Stack.Screen 
         name="BookingDetails" 
         component={BookingDetailsScreen}
+        options={{ 
+          headerShown: true,
+          title: 'Booking Details',
+          headerBackTitle: 'Back',
+        }}
+      />
+      <Stack.Screen 
+        name="AdminBookingDetails" 
+        component={AdminBookingDetailsScreen}
         options={{ 
           headerShown: true,
           title: 'Booking Details',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,32 +9,158 @@ import {
   Alert,
   Modal,
   Platform,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
+import { 
+  cityAPI, 
+  airportAPI, 
+  airlineAPI, 
+  routeAPI, 
+  adminAPI 
+} from '../../services/api';
+type ManageTab = 'cities' | 'airports' | 'airlines' | 'routes';
 
-type ManageTab = 'cities' | 'airports' | 'airlines' | 'routes' | 'flights';
+interface City {
+  city_id: number;
+  city_name: string;
+  country: string;
+  timezone: string;
+}
+
+interface Airport {
+  airport_id: number;
+  airport_code: string;
+  airport_name: string;
+  city_name: string;
+  city_id: number;
+}
+
+interface Airline {
+  airline_id: number;
+  airline_code: string;
+  airline_name: string;
+}
+
+interface Route {
+  route_id: number;
+  origin_airport_code: string;
+  destination_airport_code: string;
+  origin_airport: {
+    airport_code: string;
+    airport_name: string;
+    city_name: string;
+  };
+  destination_airport: {
+    airport_code: string;
+    airport_name: string;
+    city_name: string;
+  };
+}
 
 export default function AdminManageScreen() {
   const [activeTab, setActiveTab] = useState<ManageTab>('cities');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Data states
+  const [cities, setCities] = useState<City[]>([]);
+  const [airports, setAirports] = useState<Airport[]>([]);
+  const [airlines, setAirlines] = useState<Airline[]>([]);
+const [routes, setRoutes] = useState<Route[]>([]);
 
-  const handleAdd = () => {
-    setShowAddModal(true);
+  // Load data when tab changes
+  useEffect(() => {
+    loadData();
+  }, [activeTab]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      switch (activeTab) {
+        case 'cities':
+          await loadCities();
+          break;
+        case 'airports':
+          await loadAirports();
+          break;
+        case 'airlines':
+          await loadAirlines();
+          break;
+        case 'routes':
+          await loadRoutes();
+          break;
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (type: string, name: string) => {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
+  const loadCities = async () => {
+    const response = await cityAPI.getCities();
+    setCities(response.data.data);
+  };
+
+  const loadAirports = async () => {
+    const response = await airportAPI.getAirports();
+    setAirports(response.data.data);
+  };
+
+  const loadAirlines = async () => {
+    const response = await airlineAPI.getAirlines();
+    setAirlines(response.data.data);
+  };
+
+  const loadRoutes = async () => {
+    const response = await routeAPI.getRoutes();
+    setRoutes(response.data.data);
+  };
+
+
+  const handleDelete = async (type: string, identifier: string, name: string) => {
     Alert.alert(
       'Confirm Delete',
-      `Are you sure you want to delete ${name}? This will cancel all related flights and notify affected users.`,
+      `Are you sure you want to delete ${name}? This may affect related data.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            // TODO: Call API to delete
-            Alert.alert('Success', `${name} deleted successfully. Users have been notified.`);
+          onPress: async () => {
+            try {
+              switch (type) {
+                case 'city':
+                  // Uses city name
+                  await adminAPI.deleteCity(identifier);
+                  break;
+                case 'airport':
+                  // Uses airport code
+                  await adminAPI.deleteAirport(identifier);
+                  break;
+                case 'airline':
+                  // Uses airline code
+                  await adminAPI.deleteAirline(identifier);
+                  break;
+                case 'route':
+                  // Uses route ID
+                  await adminAPI.deleteRoute(identifier);
+                  break;
+              }
+              Alert.alert('Success', `${name} deleted successfully`);
+              loadData();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to delete');
+            }
           },
         },
       ]
@@ -43,207 +169,181 @@ export default function AdminManageScreen() {
 
   const renderCitiesTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.tabDescription}>
+      <Text key="description" style={styles.tabDescription}>
         Manage cities where your airline operates
       </Text>
 
-      <View style={styles.itemsList}>
-        {['Toronto', 'Vancouver', 'Montreal', 'Calgary'].map((city, index) => (
-          <View key={index} style={styles.itemCard}>
-            <View style={styles.itemIcon}>
-              <Ionicons name="location" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>{city}</Text>
-              <Text style={styles.itemMeta}>Ontario, Canada</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDelete('city', city)}
-            >
-              <Ionicons name="trash" size={20} color={colors.error} />
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
+      {loading ? (
+        <ActivityIndicator key="loader" size="large" color={colors.primary} style={styles.loader} />
+      ) : cities.length === 0 ? (
+        <Text key="empty" style={styles.emptyText}>No cities found</Text>
+      ) : (
+        <View key="content" style={styles.itemsList}>
+          {cities.map((city, index) => {
+            const cityKey = city.city_id ?? city.city_name ?? `city-${index}`;
+            return (
+              <View key={cityKey} style={styles.itemCard}>
+                <View style={styles.itemIcon}>
+                  <Ionicons name="location" size={24} color={colors.primary} />
+                </View>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName}>{city.city_name}</Text>
+                  <Text style={styles.itemMeta}>{city.country} • {city.timezone}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDelete('city', city.city_name, city.city_name)}
+                >
+                  <Ionicons name="trash" size={20} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 
   const renderAirportsTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.tabDescription}>
+      <Text key="description" style={styles.tabDescription}>
         Manage airports and their details
       </Text>
 
-      <View style={styles.itemsList}>
-        {[
-          { code: 'YYZ', name: 'Toronto Pearson', city: 'Toronto' },
-          { code: 'YVR', name: 'Vancouver Intl', city: 'Vancouver' },
-          { code: 'YUL', name: 'Montreal Trudeau', city: 'Montreal' },
-          { code: 'YYC', name: 'Calgary Intl', city: 'Calgary' },
-        ].map((airport, index) => (
-          <View key={index} style={styles.itemCard}>
-            <View style={styles.itemIcon}>
-              <Ionicons name="airplane" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>{airport.name}</Text>
-              <Text style={styles.itemMeta}>
-                {airport.code} • {airport.city}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDelete('airport', airport.name)}
-            >
-              <Ionicons name="trash" size={20} color={colors.error} />
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
+      {loading ? (
+        <ActivityIndicator key="loader" size="large" color={colors.primary} style={styles.loader} />
+      ) : airports.length === 0 ? (
+        <Text key="empty" style={styles.emptyText}>No airports found</Text>
+      ) : (
+        <View key="content" style={styles.itemsList}>
+          {airports.map((airport, index) => {
+            const airportKey = airport.airport_id ?? airport.airport_code ?? `airport-${index}`;
+            return (
+              <View key={airportKey} style={styles.itemCard}>
+                <View style={styles.itemIcon}>
+                  <Ionicons name="airplane" size={24} color={colors.primary} />
+                </View>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName}>{airport.airport_name}</Text>
+                  <Text style={styles.itemMeta}>
+                    {airport.airport_code} • {airport.city_name}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDelete('airport', airport.airport_code, airport.airport_name)}
+                >
+                  <Ionicons name="trash" size={20} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 
   const renderAirlinesTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.tabDescription}>
+      <Text key="description" style={styles.tabDescription}>
         Manage airline partners and carriers
       </Text>
 
-      <View style={styles.itemsList}>
-        {[
-          { name: 'FlyPorter', code: 'FP', fleet: 45 },
-          { name: 'Air Canada', code: 'AC', fleet: 12 },
-          { name: 'WestJet', code: 'WS', fleet: 8 },
-        ].map((airline, index) => (
-          <View key={index} style={styles.itemCard}>
-            <View style={styles.itemIcon}>
-              <Ionicons name="business" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>{airline.name}</Text>
-              <Text style={styles.itemMeta}>
-                {airline.code} • {airline.fleet} aircraft
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDelete('airline', airline.name)}
-            >
-              <Ionicons name="trash" size={20} color={colors.error} />
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderRoutesTab = () => (
-    <View style={styles.tabContent}>
-      <Text style={styles.tabDescription}>
-        Manage flight routes between airports
-      </Text>
-
-      <View style={styles.itemsList}>
-        {[
-          { from: 'YYZ', to: 'YVR', airline: 'FlyPorter', flights: 12 },
-          { from: 'YUL', to: 'YYZ', airline: 'FlyPorter', flights: 8 },
-          { from: 'YVR', to: 'YYC', airline: 'Air Canada', flights: 6 },
-        ].map((route, index) => (
-          <View key={index} style={styles.itemCard}>
-            <View style={styles.itemIcon}>
-              <Ionicons name="swap-horizontal" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>
-                {route.from} → {route.to}
-              </Text>
-              <Text style={styles.itemMeta}>
-                {route.airline} • {route.flights} flights
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDelete('route', `${route.from} to ${route.to}`)}
-            >
-              <Ionicons name="trash" size={20} color={colors.error} />
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderFlightsTab = () => (
-    <View style={styles.tabContent}>
-      <Text style={styles.tabDescription}>
-        Manage flights, schedules, and pricing
-      </Text>
-
-      <View style={styles.itemsList}>
-        {[
-          {
-            number: 'FP101',
-            route: 'YYZ → YVR',
-            time: '08:00 - 11:30',
-            price: 299,
-            seats: 45,
-          },
-          {
-            number: 'FP203',
-            route: 'YUL → YYZ',
-            time: '12:30 - 16:00',
-            price: 349,
-            seats: 23,
-          },
-          {
-            number: 'FP405',
-            route: 'YVR → YYC',
-            time: '18:00 - 21:30',
-            price: 279,
-            seats: 67,
-          },
-        ].map((flight, index) => (
-          <View key={index} style={styles.flightCard}>
-            <View style={styles.flightHeader}>
-              <View>
-                <Text style={styles.flightNumber}>{flight.number}</Text>
-                <Text style={styles.flightRoute}>{flight.route}</Text>
+      {loading ? (
+        <ActivityIndicator key="loader" size="large" color={colors.primary} style={styles.loader} />
+      ) : airlines.length === 0 ? (
+        <Text key="empty" style={styles.emptyText}>No airlines found</Text>
+      ) : (
+        <View key="content" style={styles.itemsList}>
+          {airlines.map((airline) => (
+            <View key={airline.airline_id} style={styles.itemCard}>
+              <View style={styles.itemIcon}>
+                <Ionicons name="business" size={24} color={colors.primary} />
               </View>
-              <Text style={styles.flightPrice}>${flight.price}</Text>
-            </View>
-
-            <View style={styles.flightDetails}>
-              <View style={styles.flightDetail}>
-                <Ionicons name="time" size={16} color={colors.textSecondary} />
-                <Text style={styles.flightDetailText}>{flight.time}</Text>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{airline.airline_name}</Text>
+                <Text style={styles.itemMeta}>{airline.airline_code}</Text>
               </View>
-              <View style={styles.flightDetail}>
-                <Ionicons name="people" size={16} color={colors.textSecondary} />
-                <Text style={styles.flightDetailText}>{flight.seats} seats</Text>
-              </View>
-            </View>
-
-            <View style={styles.flightActions}>
-              <TouchableOpacity style={styles.flightActionButton}>
-                <Ionicons name="create" size={18} color={colors.primary} />
-                <Text style={styles.flightActionText}>Edit Price</Text>
-              </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.flightActionButton, styles.cancelFlightButton]}
-                onPress={() => handleDelete('flight', flight.number)}
+                style={styles.deleteButton}
+                onPress={() => handleDelete('airline', airline.airline_code, airline.airline_name)}
               >
-                <Ionicons name="close-circle" size={18} color={colors.error} />
-                <Text style={[styles.flightActionText, styles.cancelFlightText]}>
-                  Cancel
-                </Text>
+                <Ionicons name="trash" size={20} color={colors.error} />
               </TouchableOpacity>
             </View>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      )}
     </View>
   );
+
+  const renderRoutesTab = () => {
+    // Group routes by origin-destination pair
+    const groupedRoutes = routes.reduce((acc, route) => {
+      const key = `${route.origin_airport_code}-${route.destination_airport_code}`;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(route);
+      return acc;
+    }, {} as Record<string, Route[]>);
+
+    return (
+      <View style={styles.tabContent}>
+        <Text key="description" style={styles.tabDescription}>
+          Manage flight routes between airports
+        </Text>
+
+        {loading ? (
+          <ActivityIndicator key="loader" size="large" color={colors.primary} style={styles.loader} />
+        ) : routes.length === 0 ? (
+          <Text key="empty" style={styles.emptyText}>No routes found</Text>
+        ) : (
+          <View key="content" style={styles.itemsList}>
+            {Object.entries(groupedRoutes).map(([key, routeGroup]) => {
+              const firstRoute = routeGroup[0];
+              return (
+                <View key={key} style={styles.routeGroupCard}>
+                  <View style={styles.routeGroupHeader}>
+                    <View style={styles.itemIcon}>
+                      <Ionicons name="swap-horizontal" size={24} color={colors.primary} />
+                    </View>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>
+                        {firstRoute.origin_airport.airport_code} → {firstRoute.destination_airport.airport_code}
+                      </Text>
+                      <Text style={styles.itemMeta}>
+                        {firstRoute.origin_airport.city_name} to {firstRoute.destination_airport.city_name}
+                      </Text>
+                      {routeGroup.length > 1 && (
+                        <Text style={styles.routeCount}>
+                          {routeGroup.length} routes
+                        </Text>
+                      )}
+                    </View>
+                    
+                    {/* Delete buttons for each route */}
+                    <View style={styles.routeDeleteContainer}>
+                      {routeGroup.map((route) => (
+                        <TouchableOpacity
+                          key={route.route_id}
+                          style={styles.deleteButton}
+                          onPress={() => handleDelete('route', route.route_id.toString(), `${firstRoute.origin_airport.airport_code} to ${firstRoute.destination_airport.airport_code}`)}
+                        >
+                          <Ionicons name="trash" size={20} color={colors.error} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+  };
+
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -255,8 +355,6 @@ export default function AdminManageScreen() {
         return renderAirlinesTab();
       case 'routes':
         return renderRoutesTab();
-      case 'flights':
-        return renderFlightsTab();
       default:
         return null;
     }
@@ -268,6 +366,7 @@ export default function AdminManageScreen() {
       <View style={styles.tabSelector}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <TouchableOpacity
+            key="cities"
             style={[styles.tabButton, activeTab === 'cities' && styles.tabButtonActive]}
             onPress={() => setActiveTab('cities')}
           >
@@ -287,6 +386,7 @@ export default function AdminManageScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            key="airports"
             style={[styles.tabButton, activeTab === 'airports' && styles.tabButtonActive]}
             onPress={() => setActiveTab('airports')}
           >
@@ -306,6 +406,7 @@ export default function AdminManageScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            key="airlines"
             style={[styles.tabButton, activeTab === 'airlines' && styles.tabButtonActive]}
             onPress={() => setActiveTab('airlines')}
           >
@@ -325,6 +426,7 @@ export default function AdminManageScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            key="routes"
             style={[styles.tabButton, activeTab === 'routes' && styles.tabButtonActive]}
             onPress={() => setActiveTab('routes')}
           >
@@ -343,34 +445,18 @@ export default function AdminManageScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'flights' && styles.tabButtonActive]}
-            onPress={() => setActiveTab('flights')}
-          >
-            <Ionicons
-              name="airplane"
-              size={20}
-              color={activeTab === 'flights' ? colors.primary : colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.tabButtonText,
-                activeTab === 'flights' && styles.tabButtonTextActive,
-              ]}
-            >
-              Flights
-            </Text>
-          </TouchableOpacity>
         </ScrollView>
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content}>{renderTabContent()}</ScrollView>
-
-      {/* Add Button */}
-      <TouchableOpacity style={styles.fab} onPress={handleAdd}>
-        <Ionicons name="add" size={32} color="#fff" />
-      </TouchableOpacity>
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {renderTabContent()}
+      </ScrollView>
     </View>
   );
 }
@@ -390,9 +476,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
-    marginHorizontal: spacing.xs,
+    marginHorizontal: spacing.xs / 2,
     borderRadius: 20,
   },
   tabButtonActive: {
@@ -466,110 +552,62 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: spacing.sm,
   },
-  flightCard: {
+  routeGroupCard: {
     backgroundColor: '#fff',
-    padding: spacing.lg,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 2,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
-  flightHeader: {
+  routeGroupHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    padding: spacing.md,
   },
-  flightNumber: {
-    ...typography.h4,
-    color: colors.text,
+  routeCount: {
+    ...typography.caption,
+    color: colors.primary,
     fontWeight: '600',
-  },
-  flightRoute: {
-    ...typography.body2,
-    color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  flightPrice: {
-    ...typography.h4,
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  flightDetails: {
+  routeDeleteContainer: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  flightDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.xs,
   },
-  flightDetailText: {
-    ...typography.caption,
+  loader: {
+    marginTop: spacing.xl,
+  },
+  emptyText: {
+    ...typography.body1,
     color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+    fontStyle: 'italic',
   },
-  flightActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  flightActionButton: {
-    flex: 1,
+  limitWarning: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.surface,
     padding: spacing.sm,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.primary,
+    marginBottom: spacing.md,
     gap: spacing.xs,
   },
-  flightActionText: {
-    ...typography.body2,
+  limitWarningText: {
+    ...typography.caption,
     color: colors.primary,
-    fontWeight: '600',
-  },
-  cancelFlightButton: {
-    borderColor: colors.error,
-  },
-  cancelFlightText: {
-    color: colors.error,
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    flex: 1,
   },
 });
 

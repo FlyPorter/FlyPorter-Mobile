@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Backend API configuration
-const API_BASE_URL = 'https://api.flyporter.website/api';
+const API_BASE_URL = 'http://192.168.18.11:3000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -43,7 +43,7 @@ api.interceptors.response.use(
   }
 );
 
-export default api;
+export { api };
 
 // API endpoints matching backend routes
 export const authAPI = {
@@ -111,6 +111,8 @@ export const profileAPI = {
     emergency_contact_name?: string;
     emergency_contact_phone?: string;
   }) => api.patch('/profile', data),
+  // POST /profile/push-token - Register push notification token (requires auth)
+  registerPushToken: (pushToken: string) => api.post('/profile/push-token', { pushToken }),
 };
 
 export const paymentAPI = {
@@ -126,6 +128,12 @@ export const paymentAPI = {
 export const notificationAPI = {
   // GET /notifications - Get user notifications (requires auth)
   getNotifications: () => api.get('/notifications'),
+  // GET /notifications/unread/count - Get unread notifications count (requires auth)
+  getUnreadCount: () => api.get('/notifications/unread/count'),
+  // PATCH /notifications/:id/read - Mark notification as read (requires auth)
+  markAsRead: (id: number) => api.patch(`/notifications/${id}/read`),
+  // PATCH /notifications/read-all - Mark all notifications as read (requires auth)
+  markAllAsRead: () => api.patch('/notifications/read-all'),
 };
 
 export const pdfAPI = {
@@ -221,7 +229,7 @@ export const adminAPI = {
   deleteFlight: (id: string) => api.delete(`/flight/${id}`),
   
   // Customer Management (Admin)
-  getAllCustomers: () => api.get('/customers'),
+  // Note: There is no "get all customers" endpoint. Use adminAPI.getAllBookings() to derive customer count.
   getCustomerById: (id: string) => api.get(`/customers/${id}`),
   updateCustomer: (id: string, data: Partial<{
     email: string;
@@ -231,10 +239,12 @@ export const adminAPI = {
     date_of_birth: string;
     emergency_contact_name: string;
     emergency_contact_phone: string;
-  }>) => api.put(`/customers/${id}`, data),
+  }>) => api.patch(`/customers/${id}`, data),
   deleteCustomer: (id: string) => api.delete(`/customers/${id}`),
   
   // Bookings Management (Admin - view all bookings)
-  getAllBookings: () => api.get('/admin/bookings'),
+  getAllBookings: () => api.get('/bookings/admin/all'),
+  // Cancel any booking (admin only)
+  cancelBooking: (id: string) => api.delete(`/bookings/admin/${id}`),
 };
 
