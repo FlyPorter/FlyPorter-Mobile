@@ -147,7 +147,12 @@ export default function AdminBookingsScreen() {
       <View key={booking.booking_id} style={styles.bookingCard}>
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('AdminBookingDetails', { bookingId: booking.booking_id })}
+          onPress={() =>
+            navigation.navigate('AdminBookingDetails', {
+              bookingId: booking.booking_id,
+              booking,
+            })
+          }
         >
           {/* Status Badge */}
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>

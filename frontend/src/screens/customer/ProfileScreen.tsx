@@ -56,6 +56,11 @@ export default function ProfileScreen() {
   };
 
   const loadProfile = async () => {
+    // Skip if no user (e.g., during logout)
+    if (!user) {
+      return;
+    }
+
     try {
       const response = await profileAPI.get();
       const profileData = response.data?.data || response.data;

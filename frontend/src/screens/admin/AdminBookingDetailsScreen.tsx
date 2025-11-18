@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography } from '../../theme/theme';
-import { bookingAPI, adminAPI } from '../../services/api';
+import { adminAPI } from '../../services/api';
 import { format } from 'date-fns';
 
 interface BookingDetails {
@@ -53,22 +53,53 @@ interface BookingDetails {
   };
 }
 
+const normalizeBooking = (rawBooking: any): BookingDetails | null => {
+  if (!rawBooking) return null;
+  return {
+    ...rawBooking,
+    seat_number: rawBooking.seat_number || rawBooking.seat?.seat_number || rawBooking.seatNumber,
+    flight: rawBooking.flight
+      ? {
+          ...rawBooking.flight,
+          airline: rawBooking.flight.airline,
+          route: rawBooking.flight.route,
+        }
+      : undefined,
+    user: rawBooking.user
+      ? {
+          email: rawBooking.user.email,
+          customer_info: rawBooking.user.customer_info,
+        }
+      : undefined,
+  };
+};
+
 export default function AdminBookingDetailsScreen({ route }: any) {
   const navigation = useNavigation();
-  const { bookingId } = route.params;
-  const [loading, setLoading] = useState(true);
-  const [booking, setBooking] = useState<BookingDetails | null>(null);
+  const { bookingId, booking: bookingFromRoute } = route.params;
+  const [loading, setLoading] = useState(!bookingFromRoute);
+  const [booking, setBooking] = useState<BookingDetails | null>(
+    normalizeBooking(bookingFromRoute)
+  );
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
-    loadBookingDetails();
-  }, [bookingId]);
+    if (!booking && bookingId) {
+      loadBookingDetails();
+    }
+  }, [bookingId, booking]);
 
   const loadBookingDetails = async () => {
     try {
       setLoading(true);
-      const response = await bookingAPI.getById(bookingId.toString());
-      setBooking(response.data.data);
+      const response = await adminAPI.getAllBookings();
+      const found = response.data?.data?.find(
+        (item: any) => item.booking_id === bookingId
+      );
+      if (!found) {
+        throw new Error('Booking not found');
+      }
+      setBooking(normalizeBooking(found));
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || 'Failed to load booking details');
       navigation.goBack();
@@ -249,7 +280,7 @@ export default function AdminBookingDetailsScreen({ route }: any) {
 
           <View style={styles.detailRow}>
             <View style={styles.detailItem}>
-              <Ionicons name="seat" size={20} color={colors.textSecondary} />
+              <Ionicons name="airplane" size={20} color={colors.textSecondary} />
               <Text style={styles.detailLabel}>Seat</Text>
             </View>
             <Text style={styles.detailValue}>{booking.seat_number}</Text>
