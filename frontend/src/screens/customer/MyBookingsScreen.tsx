@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,15 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import { colors, spacing, typography } from '../../theme/theme';
 import { bookingAPI } from '../../services/api';
+import {
+  getTravelReminderPreference,
+  saveTravelReminderPreference,
+  ReminderPreference,
+  ReminderPreferenceOption,
+} from '../../utils/reminderPreferences';
 
 // Timezone mapping for Canadian airports
 const AIRPORT_TIMEZONES: { [key: string]: string } = {
@@ -96,6 +103,29 @@ export default function MyBookingsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [reminderPreference, setReminderPreference] = useState<ReminderPreference | null>(null);
+  const [preferenceLoading, setPreferenceLoading] = useState(true);
+  const [reminderPromptVisible, setReminderPromptVisible] = useState(false);
+  const [currentBookingHash, setCurrentBookingHash] = useState<string | null>(null);
+  const reminderTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPreference = async () => {
+      const pref = await getTravelReminderPreference();
+      if (isMounted) {
+        setReminderPreference(pref);
+        setPreferenceLoading(false);
+      }
+    };
+
+    loadPreference();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Refresh bookings when tab changes
   useEffect(() => {
@@ -109,6 +139,15 @@ export default function MyBookingsScreen() {
       loadBookings();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab])
+  );
+
+  useFocusEffect(
+    React.useCallback(() => {
+      reminderTriggeredRef.current = false;
+      return () => {
+        reminderTriggeredRef.current = false;
+      };
+    }, [])
   );
 
   const loadBookings = async () => {
@@ -280,6 +319,104 @@ export default function MyBookingsScreen() {
     }
   };
 
+  const ensureNotificationPermission = async () => {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status === 'granted') {
+      return true;
+    }
+    const requestResult = await Notifications.requestPermissionsAsync();
+    return requestResult.status === 'granted';
+  };
+
+  const computeBookingHash = (items: Booking[]) => {
+    return items
+      .map(
+        booking =>
+          `${booking.bookingReference}-${booking.flight?.flightNumber || booking.flight?.id || booking.id}`
+      )
+      .sort()
+      .join('|');
+  };
+
+  const handleReminderSelection = async (option: ReminderPreferenceOption) => {
+    const now = new Date().toISOString();
+    const hash = currentBookingHash ?? computeBookingHash(upcomingBookings);
+    const nextPreference: ReminderPreference = {
+      option,
+      updatedAt: now,
+      ...(option === 'skip_until_change' && hash ? { bookingHash: hash } : {}),
+    };
+
+    setReminderPreference(nextPreference);
+    await saveTravelReminderPreference(nextPreference);
+    if (option === 'remind_next_time') {
+      reminderTriggeredRef.current = false;
+    }
+    setReminderPromptVisible(false);
+  };
+
+  const upcomingBookings = useMemo(
+    () => bookings.filter(b => b.status === 'confirmed'),
+    [bookings]
+  );
+  const pastBookings = useMemo(
+    () => bookings.filter(b => b.status !== 'confirmed'),
+    [bookings]
+  );
+
+  useEffect(() => {
+    const evaluateReminder = async () => {
+      if (loading || preferenceLoading) {
+        return;
+      }
+      if (upcomingBookings.length === 0) {
+        setReminderPromptVisible(false);
+        reminderTriggeredRef.current = false;
+        return;
+      }
+
+      const bookingHash = computeBookingHash(upcomingBookings);
+      const shouldTrigger =
+        !reminderPreference ||
+        reminderPreference.option === 'remind_next_time' ||
+        (reminderPreference.option === 'skip_until_change' &&
+          reminderPreference.bookingHash !== bookingHash);
+
+      if (reminderPreference?.option === 'never') {
+        setReminderPromptVisible(false);
+        return;
+      }
+
+      if (shouldTrigger && !reminderTriggeredRef.current) {
+        const hasPermission = await ensureNotificationPermission();
+        setCurrentBookingHash(bookingHash);
+
+        if (hasPermission) {
+          try {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: 'Upcoming trip reminder',
+                body: 'You have upcoming bookings. Please arrive at the airport at least two hours before departure.',
+                sound: true,
+              },
+              trigger: {
+                seconds: 1,
+              },
+            });
+          } catch (error) {
+            console.warn('Failed to schedule reminder notification', error);
+          }
+        }
+
+        reminderTriggeredRef.current = true;
+        setReminderPromptVisible(true);
+      }
+    };
+
+    evaluateReminder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upcomingBookings, loading, preferenceLoading, reminderPreference]);
+
   const handleRefresh = () => {
     setRefreshing(true);
     loadBookings();
@@ -414,8 +551,62 @@ export default function MyBookingsScreen() {
     );
   };
 
-  const upcomingBookings = bookings.filter(b => b.status === 'confirmed');
-  const pastBookings = bookings.filter(b => b.status !== 'confirmed');
+  const openReminderPreferences = () => {
+    Alert.alert(
+      'Reminder preferences',
+      'Choose how you would like to be reminded about upcoming trips.',
+      [
+        {
+          text: 'Remind me next time',
+          onPress: () => handleReminderSelection('remind_next_time'),
+        },
+        {
+          text: 'Skip until my bookings change',
+          onPress: () => handleReminderSelection('skip_until_change'),
+        },
+        {
+          text: 'Never show again',
+          style: 'destructive',
+          onPress: () => handleReminderSelection('never'),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const renderReminderPrompt = () => {
+    if (!reminderPromptVisible) {
+      return null;
+    }
+
+    return (
+      <View style={styles.reminderBanner}>
+        <View style={styles.reminderBannerText}>
+          <Ionicons name="time-outline" size={20} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.reminderTitle}>Upcoming trip reminder</Text>
+            <Text style={styles.reminderMessage}>
+              You have upcoming bookings. Plan to arrive at the airport two hours early.
+            </Text>
+          </View>
+        </View>
+        <View style={styles.reminderBannerActions}>
+          <TouchableOpacity style={styles.reminderActionButton} onPress={openReminderPreferences}>
+            <Text style={styles.reminderActionText}>Reminder options</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.reminderActionButton}
+            onPress={() => handleReminderSelection('remind_next_time')}
+          >
+            <Text style={styles.reminderActionText}>Dismiss</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -468,6 +659,7 @@ export default function MyBookingsScreen() {
           />
         }
       >
+        {renderReminderPrompt()}
         {activeTab === 'upcoming' ? (
           upcomingBookings.length > 0 ? (
             upcomingBookings.map(renderBookingCard)
@@ -718,5 +910,44 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
   },
+  reminderBanner: {
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    borderRadius: 10,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reminderBannerText: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  reminderTitle: {
+    ...typography.body1,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  reminderMessage: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  reminderBannerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.md,
+  },
+  reminderActionButton: {
+    paddingVertical: spacing.xs,
+  },
+  reminderActionText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+  },
 });
-
