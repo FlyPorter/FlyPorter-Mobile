@@ -166,205 +166,6 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
   
   const formattedFlightDate = safeFlight?.formattedDate || '';
 
-  const handleDownloadPDF = async () => {
-    try {
-      // Generate HTML for PDF
-      const html = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <title>Booking Confirmation</title>
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                padding: 40px;
-                color: #333;
-              }
-              .header {
-                text-align: center;
-                margin-bottom: 40px;
-                border-bottom: 2px solid #C8102E;
-                padding-bottom: 20px;
-              }
-              .header h1 {
-                color: #C8102E;
-                margin: 0;
-              }
-              .section {
-                margin: 30px 0;
-              }
-              .section-title {
-                color: #C8102E;
-                font-size: 18px;
-                font-weight: bold;
-                margin-bottom: 15px;
-              }
-              .info-row {
-                display: flex;
-                justify-content: space-between;
-                padding: 10px 0;
-                border-bottom: 1px solid #eee;
-              }
-              .label {
-                font-weight: bold;
-              }
-              .total {
-                background-color: #f5f5f5;
-                padding: 15px;
-                margin-top: 20px;
-                text-align: right;
-              }
-              .total-amount {
-                font-size: 24px;
-                color: #C8102E;
-                font-weight: bold;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>FlyPorter Airlines</h1>
-              <p>Booking Confirmation</p>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">Booking Information</div>
-              <div class="info-row">
-                <span class="label">Booking Reference:</span>
-                <span>${bookingId}</span>
-              </div>
-              ${isRoundTrip && returnBookingId ? `<div class="info-row">
-                <span class="label">Return Booking Reference:</span>
-                <span>${returnBookingId}</span>
-              </div>` : ''}
-              <div class="info-row">
-                <span class="label">Flight Number:</span>
-                <span>${safeFlight.flightNumber}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Date:</span>
-                <span>${safeFlight.formattedDate}</span>
-              </div>
-            </div>
-
-            <div class="section">
-              <div class="section-title">Flight Details</div>
-              
-              ${isRoundTrip ? '<p style="font-weight: bold; color: #C8102E; margin-bottom: 10px;">Outbound Flight</p>' : ''}
-              <div class="info-row">
-                <span class="label">Flight Number:</span>
-                <span>${safeFlight.flightNumber}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Date:</span>
-                <span>${safeFlight.formattedDate}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">From:</span>
-                <span>${safeFlight.origin.city || safeFlight.origin.name || ''} (${safeFlight.origin.code})</span>
-              </div>
-              <div class="info-row">
-                <span class="label">To:</span>
-                <span>${safeFlight.destination.city || safeFlight.destination.name || ''} (${safeFlight.destination.code})</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Departure:</span>
-                <span>${safeFlight.departureTime}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Arrival:</span>
-                <span>${safeFlight.arrivalTime}</span>
-              </div>
-              ${safeFlight.duration ? `<div class="info-row">
-                <span class="label">Duration:</span>
-                <span>${safeFlight.duration}</span>
-              </div>` : ''}
-              
-              ${isRoundTrip && safeReturnFlight ? `
-                <p style="font-weight: bold; color: #C8102E; margin-top: 20px; margin-bottom: 10px;">Return Flight</p>
-                <div class="info-row">
-                  <span class="label">Flight Number:</span>
-                  <span>${safeReturnFlight.flightNumber}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Date:</span>
-                  <span>${safeReturnFlight.formattedDate}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">From:</span>
-                  <span>${safeReturnFlight.origin.city || safeReturnFlight.origin.name || ''} (${safeReturnFlight.origin.code})</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">To:</span>
-                  <span>${safeReturnFlight.destination.city || safeReturnFlight.destination.name || ''} (${safeReturnFlight.destination.code})</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Departure:</span>
-                  <span>${safeReturnFlight.departureTime}</span>
-                </div>
-                <div class="info-row">
-                  <span class="label">Arrival:</span>
-                  <span>${safeReturnFlight.arrivalTime}</span>
-                </div>
-                ${safeReturnFlight.duration ? `<div class="info-row">
-                  <span class="label">Duration:</span>
-                  <span>${safeReturnFlight.duration}</span>
-                </div>` : ''}
-              ` : ''}
-            </div>
-
-            <div class="section">
-              <div class="section-title">Passengers</div>
-              ${passengerData.map((p: any, i: number) => `
-                <div class="info-row">
-                  <span class="label">Passenger ${i + 1}:</span>
-                  <span>${p.firstName} ${p.lastName}</span>
-                </div>
-                <div class="info-row" style="padding-left: 20px;">
-                  <span class="label">${isRoundTrip ? 'Outbound Seat:' : 'Seat:'}</span>
-                  <span>${selectedSeats[i].row}${selectedSeats[i].column}</span>
-                </div>
-                ${isRoundTrip && returnSelectedSeats && returnSelectedSeats[i] ? `
-                  <div class="info-row" style="padding-left: 20px;">
-                    <span class="label">Return Seat:</span>
-                    <span>${returnSelectedSeats[i].row}${returnSelectedSeats[i].column}</span>
-                  </div>
-                ` : ''}
-              `).join('')}
-            </div>
-
-            <div class="total">
-              <div>Total Amount Paid</div>
-              <div class="total-amount">$${totalAmount.toFixed(2)}</div>
-            </div>
-
-            <div class="section">
-              <p><strong>Important:</strong> Please arrive at the airport at least 2 hours before departure for domestic flights and 3 hours for international flights.</p>
-              <p>For any queries, please contact us at support@flyporter.com or call +1-800-FLY-PORT</p>
-            </div>
-          </body>
-        </html>
-      `;
-
-      const { uri } = await Print.printToFileAsync({ html });
-      
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Booking Confirmation',
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        Alert.alert('Success', 'PDF generated successfully!');
-      }
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      Alert.alert('Error', 'Failed to generate PDF');
-    }
-  };
-
   const handleDone = () => {
     // Navigate to the bookings tab
     navigation.reset({
@@ -384,6 +185,14 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
           <Text style={styles.successTitle}>Booking Confirmed!</Text>
           <Text style={styles.successSubtitle}>
             Your flight has been successfully booked
+          </Text>
+        </View>
+
+        {/* Email Notification */}
+        <View style={styles.emailNotification}>
+          <Ionicons name="mail" size={24} color={colors.primary} />
+          <Text style={styles.emailText}>
+            A confirmation email with your invoice has been sent to your registered email
           </Text>
         </View>
 
@@ -571,15 +380,7 @@ export default function BookingConfirmationScreen({ route, navigation }: any) {
 
       {/* Footer Actions */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={handleDownloadPDF}
-        >
-          <Ionicons name="download" size={20} color={colors.primary} />
-          <Text style={styles.secondaryButtonText}>Download PDF</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.primaryButton} onPress={handleDone}>
+        <TouchableOpacity style={styles.primaryButtonFull} onPress={handleDone}>
           <Text style={styles.primaryButtonText}>Done</Text>
         </TouchableOpacity>
       </View>
@@ -857,24 +658,25 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  secondaryButton: {
-    flex: 1,
+  emailNotification: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.md,
-    borderRadius: 8,
+    backgroundColor: '#E0F2FE',
+    margin: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.primary,
-    backgroundColor: '#fff',
-    gap: spacing.xs,
+    gap: spacing.md,
   },
-  secondaryButtonText: {
-    ...typography.button,
-    color: colors.primary,
-  },
-  primaryButton: {
+  emailText: {
     flex: 1,
+    ...typography.body2,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  primaryButtonFull: {
+    width: '100%',
     backgroundColor: colors.primary,
     padding: spacing.md,
     borderRadius: 8,
