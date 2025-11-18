@@ -284,21 +284,24 @@ export async function generateBookingInvoicePdf(
         })
       : "—";
 
-    // Departure city and time
+    // Departure airport code with city beneath it
     doc.font("Helvetica-Bold")
-      .fontSize(14)
+      .fontSize(16)
       .fillColor(textBlack)
-      .text(depTime, 120, flightY);
+      .text(originCode || "—", 120, flightY);
     doc.font("Helvetica")
       .fontSize(11)
       .fillColor(textBlack)
       .text(origin?.city_name ?? "—", 120, flightY + 18);
+    doc.fontSize(9)
+      .fillColor(textGray)
+      .text(depTime, 120, flightY + 32);
     doc.fontSize(8)
       .fillColor(textGray)
       .text(
-        `${origin?.airport_name ?? ""} (${origin?.airport_code ?? "—"})`, 
+        `${origin?.airport_name ?? ""}`, 
         120, 
-        flightY + 35,
+        flightY + 44,
         { width: 150 }
       );
 
@@ -309,19 +312,22 @@ export async function generateBookingInvoicePdf(
 
     // Arrival city and time
     doc.font("Helvetica-Bold")
-      .fontSize(14)
+      .fontSize(16)
       .fillColor(textBlack)
-      .text(arrTime, 330, flightY);
+      .text(destCode || "—", 330, flightY);
     doc.font("Helvetica")
       .fontSize(11)
       .fillColor(textBlack)
       .text(destination?.city_name ?? "—", 330, flightY + 18);
+    doc.fontSize(9)
+      .fillColor(textGray)
+      .text(arrTime, 330, flightY + 32);
     doc.fontSize(8)
       .fillColor(textGray)
       .text(
-        `${destination?.airport_name ?? ""} (${destination?.airport_code ?? "—"})`,
+        `${destination?.airport_name ?? ""}`,
         330,
-        flightY + 35,
+        flightY + 44,
         { width: 150 }
       );
 
