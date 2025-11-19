@@ -1,0 +1,12 @@
+diff --git a/node_modules/expo-updates/ios/EXUpdates/ReactDelegateHandler/ExpoUpdatesReactDelegateHandler.swift b/node_modules/expo-updates/ios/EXUpdates/ReactDelegateHandler/ExpoUpdatesReactDelegateHandler.swift
+index 7337a00..916610f 100644
+--- a/node_modules/expo-updates/ios/EXUpdates/ReactDelegateHandler/ExpoUpdatesReactDelegateHandler.swift
++++ b/node_modules/expo-updates/ios/EXUpdates/ReactDelegateHandler/ExpoUpdatesReactDelegateHandler.swift
+@@ -1,6 +1,7 @@
+ // Copyright 2018-present 650 Industries. All rights reserved.
+ 
+ import ExpoModulesCore
++import React_RCTAppDelegate
+ 
+ /**
+  * Manages and controls the auto-setup behavior of expo-updates in applicable environments.
