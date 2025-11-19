@@ -27,15 +27,6 @@ AUTOSCALING_DEMO.md
 load-test-demo.sh
 
 # iOS - ignore generated files but keep the project structure
-frontend/ios/Pods/
-frontend/ios/build/
-frontend/ios/**/*.xcuserdata
-frontend/ios/**/*.xcuserdatad
-frontend/ios/Podfile.lock
-
+frontend/ios
 # Android - ignore generated files but keep the project structure  
-frontend/android/.gradle/
-frontend/android/build/
-frontend/android/app/build/
-frontend/android/local.properties
-
+frontend/android
