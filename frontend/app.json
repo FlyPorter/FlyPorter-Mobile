@@ -58,9 +58,9 @@
           "icon": "./assets/icon.png",
           "color": "#000000",
           "sounds": []
-        },
-        "expo-splash-screen"
-      ]
+        }
+      ],
+      "expo-splash-screen"
     ],
 
     "extra": {
