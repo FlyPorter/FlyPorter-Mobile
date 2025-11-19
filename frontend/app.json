@@ -2,7 +2,7 @@
   "expo": {
     "name": "FlyPorter",
     "slug": "flyporter",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -58,7 +58,8 @@
           "icon": "./assets/icon.png",
           "color": "#000000",
           "sounds": []
-        }
+        },
+        "expo-splash-screen"
       ]
     ],
 
