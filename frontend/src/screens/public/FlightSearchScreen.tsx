@@ -151,6 +151,15 @@ export default function FlightSearchScreen({ navigation, route }: any) {
     }
   }, [route?.params?.selectedAirport]);
 
+  // Clear return date if depart date is changed to be after the current return date
+  useEffect(() => {
+    if (tripType === 'round-trip' && departDate && returnDate) {
+      if (departDate >= returnDate) {
+        setReturnDate('');
+      }
+    }
+  }, [departDate, tripType]);
+
   const openAirportPicker = (type: 'departure' | 'arrival') => {
     navigation.navigate('AirportPicker', {
       type,
@@ -343,6 +352,7 @@ export default function FlightSearchScreen({ navigation, route }: any) {
                         onChange={setReturnDate}
                         placeholder="Select date"
                         minimumDate={departDate || new Date().toISOString().split('T')[0]}
+                        initialDate={departDate}
                         compact={true}
                       />
                     </View>
@@ -382,7 +392,9 @@ export default function FlightSearchScreen({ navigation, route }: any) {
             disabled={!isSearchEnabled}
           >
             <Ionicons name="search" size={24} color="#fff" />
-            <Text style={styles.searchButtonText}>Search Flights</Text>
+            <Text style={styles.searchButtonText}>
+              {tripType === 'round-trip' ? 'Search Round-trip Flights' : 'Search Flights'}
+            </Text>
           </TouchableOpacity>
         </View>
 

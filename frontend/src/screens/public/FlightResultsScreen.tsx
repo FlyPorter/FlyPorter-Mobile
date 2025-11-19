@@ -61,6 +61,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   const [selectedReturn, setSelectedReturn] = useState<Flight | null>(null);
   const [loadingReturn, setLoadingReturn] = useState(false);
   const [expandedSide, setExpandedSide] = useState<'outbound' | 'return'>('outbound');
+  const [showReturnFlights, setShowReturnFlights] = useState(false);
   const [filters, setFilters] = useState({
     minPrice: 0,
     maxPrice: 10000,
@@ -72,10 +73,10 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   }, []);
 
   useEffect(() => {
-    if (selectedOutbound && returnDate) {
+    if (selectedOutbound && returnDate && showReturnFlights) {
       loadReturnFlights();
     }
-  }, [selectedOutbound, returnDate]);
+  }, [selectedOutbound, returnDate, showReturnFlights]);
 
   const loadOutboundFlights = async () => {
     try {
@@ -241,9 +242,6 @@ export default function FlightResultsScreen({ route, navigation }: any) {
     // Allow selection without authentication - user can view flights
     setSelectedOutbound(flight);
     setSelectedReturn(null); // Reset return selection when outbound changes
-    if (returnDate) {
-      setExpandedSide('return'); // Auto expand return side after selecting outbound
-    }
   };
 
   const handleSelectReturn = (flight: Flight) => {
@@ -260,6 +258,16 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   };
 
   const handleContinue = async () => {
+    // For round-trip, if we haven't shown return flights yet, show them
+    if (returnDate && !showReturnFlights) {
+      if (!selectedOutbound) {
+        Alert.alert('Please Select', 'Please select a departing flight to continue');
+        return;
+      }
+      setShowReturnFlights(true);
+      return;
+    }
+
     if (!isAuthenticated) {
       // Store the pending navigation before redirecting to login
       try {
@@ -434,34 +442,59 @@ export default function FlightResultsScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Step Indicator for Round-trip */}
+      {returnDate && (
+        <View style={styles.stepIndicator}>
+          <View style={styles.stepItem}>
+            <View style={[styles.stepCircle, !showReturnFlights && styles.stepCircleActive]}>
+              <Text style={[styles.stepNumber, !showReturnFlights && styles.stepNumberActive]}>1</Text>
+            </View>
+            <Text style={[styles.stepLabel, !showReturnFlights && styles.stepLabelActive]}>
+              Select Departing Flight
+            </Text>
+          </View>
+          <View style={styles.stepDivider} />
+          <View style={styles.stepItem}>
+            <View style={[styles.stepCircle, showReturnFlights && styles.stepCircleActive]}>
+              <Text style={[styles.stepNumber, showReturnFlights && styles.stepNumberActive]}>2</Text>
+            </View>
+            <Text style={[styles.stepLabel, showReturnFlights && styles.stepLabelActive]}>
+              Select Return Flight
+            </Text>
+          </View>
+        </View>
+      )}
+
       <ScrollView style={styles.content}>
-        {/* Outbound Flights Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Depart</Text>
-            {selectedOutbound && (
-              <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+        {/* Outbound Flights Section - Show when not on return step */}
+        {!showReturnFlights && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Depart</Text>
+              {selectedOutbound && (
+                <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+              )}
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              {departDate}
+            </Text>
+            
+            {outboundFlights.length === 0 && !loading && (
+              <Text style={styles.noFlightsText}>No flights found</Text>
+            )}
+            
+            {outboundFlights.map((flight) =>
+              renderFlightCard(
+                flight,
+                selectedOutbound?.id === flight.id,
+                handleSelectOutbound
+              )
             )}
           </View>
-          <Text style={styles.sectionSubtitle}>
-            {departDate}
-          </Text>
-          
-          {outboundFlights.length === 0 && !loading && (
-            <Text style={styles.noFlightsText}>No flights found</Text>
-          )}
-          
-          {outboundFlights.map((flight) =>
-            renderFlightCard(
-              flight,
-              selectedOutbound?.id === flight.id,
-              handleSelectOutbound
-            )
-          )}
-        </View>
+        )}
 
-        {/* Return Flights Section - Only show for round-trip */}
-        {returnDate && (
+        {/* Return Flights Section - Only show when showReturnFlights is true */}
+        {returnDate && showReturnFlights && (
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Return</Text>
@@ -510,12 +543,14 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         <TouchableOpacity
           style={[
             styles.nextButton,
-            (!selectedOutbound || (returnDate && !selectedReturn)) && styles.nextButtonDisabled,
+            (!selectedOutbound || (returnDate && showReturnFlights && !selectedReturn)) && styles.nextButtonDisabled,
           ]}
           onPress={handleContinue}
-          disabled={!selectedOutbound || (returnDate && !selectedReturn)}
+          disabled={!selectedOutbound || (returnDate && showReturnFlights && !selectedReturn)}
         >
-          <Text style={styles.nextButtonText}>Next</Text>
+          <Text style={styles.nextButtonText}>
+            {returnDate && !showReturnFlights ? 'Continue to Return Flights' : 'Next'}
+          </Text>
           <Ionicons name="arrow-forward" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -875,6 +910,58 @@ const styles = StyleSheet.create({
     ...typography.button,
     color: '#fff',
     fontWeight: '600',
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  stepItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  stepCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface || '#f5f5f5',
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  stepCircleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  stepNumber: {
+    ...typography.body2,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  stepNumberActive: {
+    color: '#fff',
+  },
+  stepLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  stepLabelActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  stepDivider: {
+    flex: 0.5,
+    height: 2,
+    backgroundColor: colors.border,
+    marginTop: -20,
   },
 });
 

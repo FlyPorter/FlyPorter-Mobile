@@ -19,6 +19,7 @@ interface DatePickerProps {
   label?: string;
   minimumDate?: string; // YYYY-MM-DD format
   maximumDate?: string; // YYYY-MM-DD format
+  initialDate?: string; // YYYY-MM-DD format - Initial month to display when calendar opens
   style?: any;
   compact?: boolean;
 }
@@ -30,6 +31,7 @@ export default function DatePicker({
   label,
   minimumDate,
   maximumDate,
+  initialDate,
   style,
   compact = false,
 }: DatePickerProps) {
@@ -54,14 +56,19 @@ export default function DatePicker({
     }
   }, [showCalendar]);
 
-  // Update current year/month when selectedDate changes
+  // Update current year/month when selectedDate changes or use initialDate
   useEffect(() => {
     if (selectedDate) {
       const date = new Date(selectedDate + 'T00:00:00');
       setCurrentYear(date.getFullYear());
       setCurrentMonth(date.getMonth() + 1);
+    } else if (initialDate) {
+      // If no date selected, use initialDate to determine which month to show
+      const date = new Date(initialDate + 'T00:00:00');
+      setCurrentYear(date.getFullYear());
+      setCurrentMonth(date.getMonth() + 1);
     }
-  }, [selectedDate]);
+  }, [selectedDate, initialDate]);
 
   const handleDateSelect = (day: any) => {
     const dateString = day.dateString; // Format: YYYY-MM-DD
