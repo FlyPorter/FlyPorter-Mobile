@@ -28,7 +28,7 @@
     "expo-print": "~15.0.7",
     "expo-sharing": "~14.0.7",
     "expo-status-bar": "~3.0.8",
-    "expo-updates": "^0.25.28",
+    "expo-updates": "~29.0.12",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-calendars": "^1.1305.0",

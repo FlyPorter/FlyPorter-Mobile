@@ -7,29 +7,29 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00933292489A0DB59BC10474 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01E36C878AA3758F2587A937 /* ExpoModulesProvider.swift */; };
+		03C7AD35DE13DC426D698C88 /* libPods-FlyPorter.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 147903A089E66D1050B43EE9 /* libPods-FlyPorter.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		15021EB9DC689E0005FAC4E3 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2B7FF60EFF87B0BB48FE50C2 /* PrivacyInfo.xcprivacy */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		9B8BC053D077B228FD962974 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD9912E047AD5E129945E77 /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		C096D9BF9DC5A9D0C7F82554 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2EAA11F876AA09B172EF81B5 /* PrivacyInfo.xcprivacy */; };
-		D29611FE52B66BBF7412EDF4 /* libPods-FlyPorter.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FACFAA981F7FECDA71C158CE /* libPods-FlyPorter.a */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		01E36C878AA3758F2587A937 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-FlyPorter/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* FlyPorter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FlyPorter.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = FlyPorter/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = FlyPorter/Info.plist; sourceTree = "<group>"; };
-		2B9F2525EB1F2C74CAA2861E /* Pods-FlyPorter.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FlyPorter.debug.xcconfig"; path = "Target Support Files/Pods-FlyPorter/Pods-FlyPorter.debug.xcconfig"; sourceTree = "<group>"; };
-		2EAA11F876AA09B172EF81B5 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = FlyPorter/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		8CD9912E047AD5E129945E77 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-FlyPorter/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		9EFA8F46F54C32F6CF316C55 /* Pods-FlyPorter.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FlyPorter.release.xcconfig"; path = "Target Support Files/Pods-FlyPorter/Pods-FlyPorter.release.xcconfig"; sourceTree = "<group>"; };
+		147903A089E66D1050B43EE9 /* libPods-FlyPorter.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-FlyPorter.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2B7FF60EFF87B0BB48FE50C2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = FlyPorter/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		4AA936C198296FFF95EE2C0C /* Pods-FlyPorter.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FlyPorter.debug.xcconfig"; path = "Target Support Files/Pods-FlyPorter/Pods-FlyPorter.debug.xcconfig"; sourceTree = "<group>"; };
+		75F9E7A9DBFF47A903C8DA38 /* Pods-FlyPorter.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-FlyPorter.release.xcconfig"; path = "Target Support Files/Pods-FlyPorter/Pods-FlyPorter.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = FlyPorter/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = FlyPorter/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* FlyPorter-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "FlyPorter-Bridging-Header.h"; path = "FlyPorter/FlyPorter-Bridging-Header.h"; sourceTree = "<group>"; };
-		FACFAA981F7FECDA71C158CE /* libPods-FlyPorter.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-FlyPorter.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D29611FE52B66BBF7412EDF4 /* libPods-FlyPorter.a in Frameworks */,
+				03C7AD35DE13DC426D698C88 /* libPods-FlyPorter.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,34 +53,26 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				2EAA11F876AA09B172EF81B5 /* PrivacyInfo.xcprivacy */,
+				2B7FF60EFF87B0BB48FE50C2 /* PrivacyInfo.xcprivacy */,
 			);
 			name = FlyPorter;
+			sourceTree = "<group>";
+		};
+		24E86D43E934BD278767D7E8 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				D79A7B7C37E94F16E2F86F2A /* FlyPorter */,
+			);
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				FACFAA981F7FECDA71C158CE /* libPods-FlyPorter.a */,
+				147903A089E66D1050B43EE9 /* libPods-FlyPorter.a */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		3E8C8D5A540D675ABCB78B71 /* FlyPorter */ = {
-			isa = PBXGroup;
-			children = (
-				8CD9912E047AD5E129945E77 /* ExpoModulesProvider.swift */,
-			);
-			name = FlyPorter;
-			sourceTree = "<group>";
-		};
-		78BF56D26B3BF504D85B0AB5 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				3E8C8D5A540D675ABCB78B71 /* FlyPorter */,
-			);
-			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -97,8 +89,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				F380F2434429C2663C9076E1 /* Pods */,
-				78BF56D26B3BF504D85B0AB5 /* ExpoModulesProviders */,
+				AEDD591EBEE8EB0EB464ACA2 /* Pods */,
+				24E86D43E934BD278767D7E8 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -113,6 +105,16 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		AEDD591EBEE8EB0EB464ACA2 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				4AA936C198296FFF95EE2C0C /* Pods-FlyPorter.debug.xcconfig */,
+				75F9E7A9DBFF47A903C8DA38 /* Pods-FlyPorter.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
 			isa = PBXGroup;
 			children = (
@@ -122,14 +124,12 @@
 			path = FlyPorter/Supporting;
 			sourceTree = "<group>";
 		};
-		F380F2434429C2663C9076E1 /* Pods */ = {
+		D79A7B7C37E94F16E2F86F2A /* FlyPorter */ = {
 			isa = PBXGroup;
 			children = (
-				2B9F2525EB1F2C74CAA2861E /* Pods-FlyPorter.debug.xcconfig */,
-				9EFA8F46F54C32F6CF316C55 /* Pods-FlyPorter.release.xcconfig */,
+				01E36C878AA3758F2587A937 /* ExpoModulesProvider.swift */,
 			);
-			name = Pods;
-			path = Pods;
+			name = FlyPorter;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -140,13 +140,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "FlyPorter" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				ED7E7A8C780399B7C83E485D /* [Expo] Configure project */,
+				6C1AA3DAE7BD1324A4EA175F /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				FF21BE7DC37740D32C7578BE /* [CP] Embed Pods Frameworks */,
+				650A58FFCF636C5CBCAAFC37 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -196,7 +196,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				C096D9BF9DC5A9D0C7F82554 /* PrivacyInfo.xcprivacy in Resources */,
+				15021EB9DC689E0005FAC4E3 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -241,6 +241,52 @@
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
+		};
+		650A58FFCF636C5CBCAAFC37 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-FlyPorter/Pods-FlyPorter-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-FlyPorter/Pods-FlyPorter-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		6C1AA3DAE7BD1324A4EA175F /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/FlyPorter/FlyPorter.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-FlyPorter/expo-configure-project.sh",
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-FlyPorter/ExpoModulesProvider.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-FlyPorter/expo-configure-project.sh\"\n";
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -320,52 +366,6 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-FlyPorter/Pods-FlyPorter-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		ED7E7A8C780399B7C83E485D /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/.xcode.env",
-				"$(SRCROOT)/.xcode.env.local",
-				"$(SRCROOT)/FlyPorter/FlyPorter.entitlements",
-				"$(SRCROOT)/Pods/Target Support Files/Pods-FlyPorter/expo-configure-project.sh",
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(SRCROOT)/Pods/Target Support Files/Pods-FlyPorter/ExpoModulesProvider.swift",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-FlyPorter/expo-configure-project.sh\"\n";
-		};
-		FF21BE7DC37740D32C7578BE /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-FlyPorter/Pods-FlyPorter-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-FlyPorter/Pods-FlyPorter-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -374,7 +374,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				9B8BC053D077B228FD962974 /* ExpoModulesProvider.swift in Sources */,
+				00933292489A0DB59BC10474 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -383,7 +383,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 2B9F2525EB1F2C74CAA2861E /* Pods-FlyPorter.debug.xcconfig */;
+			baseConfigurationReference = 4AA936C198296FFF95EE2C0C /* Pods-FlyPorter.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -419,7 +419,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9EFA8F46F54C32F6CF316C55 /* Pods-FlyPorter.release.xcconfig */;
+			baseConfigurationReference = 75F9E7A9DBFF47A903C8DA38 /* Pods-FlyPorter.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

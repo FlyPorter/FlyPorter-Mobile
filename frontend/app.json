@@ -14,6 +14,7 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.flyporter.mobile",
@@ -25,6 +26,7 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
@@ -37,15 +39,18 @@
         "POST_NOTIFICATIONS"
       ]
     },
+
     "web": {
       "favicon": "./assets/icon.png"
     },
+
     "notification": {
       "icon": "./assets/icon.png",
       "color": "#000000",
       "androidMode": "default",
       "androidCollapsedTitle": "FlyPorter"
     },
+
     "plugins": [
       [
         "expo-notifications",
@@ -56,14 +61,17 @@
         }
       ]
     ],
+
     "extra": {
       "eas": {
         "projectId": "d24d8c01-c9a6-4c03-ba07-0c858aa49836"
       }
     },
+
     "updates": {
       "url": "https://u.expo.dev/d24d8c01-c9a6-4c03-ba07-0c858aa49836"
     },
-    "runtimeVersion": "1.0.0"
+
+    "runtimeVersion": "1.0.1"
   }
 }
