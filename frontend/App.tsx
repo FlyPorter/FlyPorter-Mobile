@@ -8,6 +8,11 @@ import { theme } from './src/theme/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // Ignoring splash errors so the app can continue mounting
+});
 
 export default function App() {
   useEffect(() => {
@@ -28,6 +33,16 @@ export default function App() {
     if (!__DEV__) {
       checkForUpdates();
     }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {
+        // Ignoring splash errors so the app can continue mounting
+      });
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return (
