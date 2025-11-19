@@ -393,7 +393,7 @@ export default function FlightSearchScreen({ navigation, route }: any) {
           >
             <Ionicons name="search" size={24} color="#fff" />
             <Text style={styles.searchButtonText}>
-              {tripType === 'round-trip' ? 'Search Round-trip Flights' : 'Search Flights'}
+              {tripType === 'round-trip' ? 'Search Round-Trip Flights' : 'Search Flights'}
             </Text>
           </TouchableOpacity>
         </View>
