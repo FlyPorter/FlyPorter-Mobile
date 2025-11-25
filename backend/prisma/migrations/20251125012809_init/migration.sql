@@ -8,14 +8,17 @@ CREATE TYPE "SeatClass" AS ENUM ('economy', 'business', 'first');
 CREATE TYPE "BookingStatus" AS ENUM ('confirmed', 'cancelled');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('booking_confirmed', 'booking_cancelled', 'flight_cancelled');
+CREATE TYPE "NotificationType" AS ENUM ('BOOKING_CONFIRMATION', 'BOOKING_CANCELLATION', 'PAYMENT_SUCCESS', 'PAYMENT_FAILED', 'FLIGHT_REMINDER', 'FLIGHT_DELAYED', 'FLIGHT_CANCELLED', 'GENERAL');
 
 -- CreateTable
 CREATE TABLE "User" (
     "user_id" SERIAL NOT NULL,
     "role" "UserRole" NOT NULL DEFAULT 'customer',
     "email" VARCHAR(100) NOT NULL,
-    "password_hash" TEXT NOT NULL,
+    "password_hash" TEXT,
+    "phone" VARCHAR(20),
+    "google_id" VARCHAR(100),
+    "push_token" VARCHAR(255),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -106,7 +109,7 @@ CREATE TABLE "CustomerInfo" (
     "user_id" INTEGER NOT NULL,
     "full_name" VARCHAR(100) NOT NULL,
     "phone" VARCHAR(20),
-    "passport_number" VARCHAR(30) NOT NULL,
+    "passport_number" VARCHAR(30),
     "date_of_birth" DATE NOT NULL,
     "emergency_contact_name" VARCHAR(100),
     "emergency_contact_phone" VARCHAR(20),
@@ -133,7 +136,40 @@ CREATE TABLE "Notification" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_google_id_key" ON "User"("google_id");
+
+-- CreateIndex
+CREATE INDEX "Airport_city_name_idx" ON "Airport"("city_name");
+
+-- CreateIndex
+CREATE INDEX "Route_origin_airport_code_idx" ON "Route"("origin_airport_code");
+
+-- CreateIndex
+CREATE INDEX "Route_destination_airport_code_idx" ON "Route"("destination_airport_code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Route_origin_airport_code_destination_airport_code_key" ON "Route"("origin_airport_code", "destination_airport_code");
+
+-- CreateIndex
+CREATE INDEX "Flight_route_id_departure_time_idx" ON "Flight"("route_id", "departure_time");
+
+-- CreateIndex
+CREATE INDEX "Flight_airline_code_idx" ON "Flight"("airline_code");
+
+-- CreateIndex
+CREATE INDEX "Seat_flight_id_is_available_idx" ON "Seat"("flight_id", "is_available");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Booking_confirmation_code_key" ON "Booking"("confirmation_code");
+
+-- CreateIndex
+CREATE INDEX "Booking_user_id_idx" ON "Booking"("user_id");
+
+-- CreateIndex
+CREATE INDEX "Booking_flight_id_idx" ON "Booking"("flight_id");
+
+-- CreateIndex
+CREATE INDEX "Booking_user_id_status_idx" ON "Booking"("user_id", "status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CustomerInfo_user_id_key" ON "CustomerInfo"("user_id");
