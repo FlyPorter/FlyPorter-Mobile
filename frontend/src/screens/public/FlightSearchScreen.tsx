@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import DatePicker from '../../components/DatePicker';
 import AirportAutocomplete from '../../components/AirportAutocomplete';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 
 const AIRPORT_COORDS = [
   {
@@ -114,29 +115,36 @@ export default function FlightSearchScreen({ navigation, route }: any) {
     (tripType === 'one-way' || (tripType === 'round-trip' && returnDate !== ''));
 
   useEffect(() => {
-    const prefillOriginFromLocation = async () => {
+    const requestPermissionsAndPrefillOrigin = async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          return;
+        // Request location permission first
+        const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
+        
+        // Request notification permission right after (only for authenticated users)
+        if (isAuthenticated) {
+          await Notifications.requestPermissionsAsync();
         }
-        const position = await Location.getCurrentPositionAsync({});
-        if (!position || origin) return;
+        
+        // Prefill origin from location if permission granted
+        if (locationStatus === 'granted') {
+          const position = await Location.getCurrentPositionAsync({});
+          if (!position || origin) return;
 
-        const nearestAirport = getNearestAirport(
-          position.coords.latitude,
-          position.coords.longitude
-        );
+          const nearestAirport = getNearestAirport(
+            position.coords.latitude,
+            position.coords.longitude
+          );
 
-        if (nearestAirport) {
-          setOrigin(`${nearestAirport.city} (${nearestAirport.code})`);
+          if (nearestAirport) {
+            setOrigin(`${nearestAirport.city} (${nearestAirport.code})`);
+          }
         }
       } catch (error) {
-        // silently fail if location not available
+        // silently fail if location/notification not available
       }
     };
 
-    prefillOriginFromLocation();
+    requestPermissionsAndPrefillOrigin();
   }, []);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { Platform, Alert } from 'react-native';
+import { Platform, Alert, AppState, AppStateStatus } from 'react-native';
 import { notificationAPI, profileAPI } from '../services/api';
 import { useAuth } from './AuthContext';
 
@@ -60,10 +60,31 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [unreadCount, setUnreadCount] = useState(0);
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { user, token } = useAuth();
+  const { user, token, loading: authLoading } = useAuth(); // Get loading state from auth
 
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
+  const lastBadgeCount = useRef<number>(0); // Store last badge count to persist across state updates
+
+  // Clear badge on initial mount AFTER auth has finished loading
+  useEffect(() => {
+    // Wait for auth to finish loading before clearing badge
+    if (!authLoading) {
+      const clearInitialBadge = async () => {
+        // Only clear if user is NOT logged in
+        if (!user || !token) {
+          try {
+            await Notifications.setBadgeCountAsync(0);
+            console.log('Initial badge cleared - user not logged in');
+          } catch (error) {
+            // Silent fail - badge clearing is not critical
+          }
+        }
+      };
+      
+      clearInitialBadge();
+    }
+  }, [authLoading, user, token]); // Run when auth loading completes
 
   // Register for push notifications
   const registerForPushNotificationsAsync = async (): Promise<string | null> => {
@@ -80,15 +101,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     if (Device.isDevice) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
       
+      // Only proceed if permission already granted (don't request here)
       if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      
-      if (finalStatus !== 'granted') {
-        console.log('Failed to get push token for push notification!');
+        console.log('Notification permission not granted yet');
         return null;
       }
       
@@ -154,12 +170,18 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     
     try {
       const response = await notificationAPI.getUnreadCount();
-      setUnreadCount(response.data.data?.count || 0);
+      const count = response.data.data?.count || 0;
+      setUnreadCount(count);
+      lastBadgeCount.current = count; // Store in ref for persistence
+      
+      // Update app icon badge count
+      await Notifications.setBadgeCountAsync(count);
     } catch (error: any) {
       // Only log error if it's not a 401 (which means user is not logged in)
       if (error.response?.status !== 401) {
         console.error('Error fetching unread count:', error);
       }
+      // Don't update badge or count on error - keep existing value
     }
   };
 
@@ -194,6 +216,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         prevNotifications.map(n => ({ ...n, is_read: true }))
       );
       setUnreadCount(0);
+      
+      // Clear app icon badge
+      await Notifications.setBadgeCountAsync(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
@@ -213,13 +238,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Initialize notifications when user logs in
   useEffect(() => {
     if (user && token) {
-      registerForPushNotificationsAsync().then(pushToken => {
-        if (pushToken) {
-          setExpoPushToken(pushToken);
-          sendPushTokenToBackend(pushToken);
-        }
-      });
-
       // Fetch initial data
       fetchNotifications();
       refreshUnreadCount();
@@ -241,11 +259,17 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         }
       });
     } else {
-      // User logged out - clear notification state
+      // User not logged in or logged out - clear notification state
       setNotifications([]);
       setUnreadCount(0);
       setExpoPushToken(null);
       setNotification(null);
+      lastBadgeCount.current = 0;
+      
+      // Clear app icon badge (important: do this whenever user is not logged in)
+      Notifications.setBadgeCountAsync(0).catch(() => {
+        // Silent fail
+      });
     }
 
     return () => {
@@ -266,6 +290,62 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       }, 30000);
 
       return () => clearInterval(interval);
+    }
+  }, [user, token]);
+
+  // Check for notification permissions and register for push token if granted
+  useEffect(() => {
+    if (user && token && !expoPushToken) {
+      const checkAndRegister = async () => {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status === 'granted') {
+          const pushToken = await registerForPushNotificationsAsync();
+          if (pushToken) {
+            setExpoPushToken(pushToken);
+            sendPushTokenToBackend(pushToken);
+          }
+        }
+      };
+
+      // Check immediately
+      checkAndRegister();
+
+      // Check every 5 seconds for the first minute after login
+      const interval = setInterval(checkAndRegister, 5000);
+      const timeout = setTimeout(() => clearInterval(interval), 60000);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [user, token, expoPushToken]);
+
+  // Handle app state changes (background/foreground)
+  useEffect(() => {
+    if (user && token) {
+      const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+        // When app comes to foreground, restore badge count
+        if (nextAppState === 'active') {
+          // Restore badge count from ref (more reliable than state)
+          // Use setTimeout to ensure this runs after any potential badge clearing
+          setTimeout(async () => {
+            try {
+              const badgeCount = lastBadgeCount.current;
+              await Notifications.setBadgeCountAsync(badgeCount);
+              console.log('Badge restored to:', badgeCount);
+            } catch (error) {
+              console.error('Error restoring badge count:', error);
+            }
+          }, 500); // Increased delay to ensure it runs after any system badge clearing
+        }
+      };
+
+      const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+      return () => {
+        subscription.remove();
+      };
     }
   }, [user, token]);
 
