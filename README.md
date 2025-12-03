@@ -19,6 +19,13 @@
 
 Backend stack: Express.js + TypeScript + Prisma + PostgreSQL
 
+---
+---
+## User Guide
+---
+---
+
+
 ## Development Guide
 
 ### Database Setup
