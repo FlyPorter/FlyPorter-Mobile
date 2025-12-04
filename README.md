@@ -22,6 +22,47 @@ Backend stack: Express.js + TypeScript + Prisma + PostgreSQL
 ---
 ---
 ## User Guide
+### Search Without Logging in
+![Demo](./demo/Search%20without%20Logging%20in.gif)
+
+### Registration & Login
+#### Test Credentials
+
+| Role   | Email           | Password |
+| ------ | --------------- | -------- |
+| Admin  | admin@123.com   | admin123 |
+| User   | customer.one@example.com  | password123 |
+| User   | customer.two@example.com  | password123 |
+#### User Sign in
+![Demo](./demo/signin.gif)
+#### User Create Account
+![Demo](./demo/register.gif)
+#### Admin Sign in
+![Demo](./demo/adminsignin.gif)
+
+
+### Admin Features (Admin Users Only)
+#### Admin View
+![Demo](./demo/adminview.gif)
+#### Bookings Management
+![Demo](./demo/admincancel.gif)
+
+### Normal User Features
+#### Seat Selection
+![Demo](./demo/rt_selectseat.gif)
+#### Payment
+![Demo](./demo/payment.gif)
+#### Round-trip Search Flight
+![Demo](./demo/roundtripselectflight.gif)
+#### Round-trip Book Flight (select seats)
+![Demo](./demo/rt_booked.gif)
+
+#### View Flight Details
+![Demo](./demo/viewdetails.gif)
+
+
+
+
 ---
 ---
 
