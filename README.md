@@ -23,9 +23,14 @@ Backend stack: Express.js + TypeScript + Prisma + PostgreSQL
 ---
 ## User Guide
 ### Search Without Logging in
+FlyPorter allows users to search for available flights without authentication.
+Booking and seat selection require a login, and users attempting to proceed without signing in will be redirected to the login page.
+
 ![Demo](./demo/Search%20without%20Logging%20in.gif)
 
 ### Registration & Login
+
+
 #### Test Credentials
 
 | Role   | Email           | Password |
@@ -38,32 +43,82 @@ Backend stack: Express.js + TypeScript + Prisma + PostgreSQL
 #### User Create Account
 ![Demo](./demo/register.gif)
 #### Admin Sign in
+Admins authenticate through the same login flow with role-based access control and are redirected to the management dashboard.
 ![Demo](./demo/adminsignin.gif)
 
 
 ### Admin Features (Admin Users Only)
 #### Admin View
+The admin dashboard provides a centralized overview of flights, customers, and booking status.
 ![Demo](./demo/adminview.gif)
 #### Bookings Management
+Admins can modify or cancel bookings with immediate database updates.
+
 ![Demo](./demo/admincancel.gif)
 
 ### Normal User Features
-#### Seat Selection
+Normal users can search for flights, select seats, make bookings, and manage their reservations through an intuitive interface.
+#### Flight Search
+Features include:
+- Choose between one-way or round trip
+- Enter origin and destination (with autocomplete suggestions)
+- Select departure date (and return date for round trips)
+- Select number of passengers
+
+![Demo](./demo/FlightSearch.gif)
+
+
+#### Seat Selection and Booking
+Users select seats across three cabin classes (**Economy**, **Business**, **First Class**) using an interactive seat map with real-time occupancy locking and availability indicators:
+
+- **AVAILABLE** — Open for selection  
+- **SELECTED** — Seat chosen by the user  
+- **OCCUPIED** — Reserved by other passengers
+
+Complete your booking by filling in passenger information. You can:
+
+- Use your profile
+- Or enter a new passenger's details (name, passport number, and birth date)
+- Review price
+- Continue to payment
+
 ![Demo](./demo/rt_selectseat.gif)
+
 #### Payment
+Enter the card details and review the booking summary, containing flight number, Departure and destination airports, seat number, price and total amount.
+
 ![Demo](./demo/payment.gif)
+
+
 #### Round-trip Search Flight
+
 ![Demo](./demo/roundtripselectflight.gif)
+
 #### Round-trip Book Flight (select seats)
+
+Users select seats for both outbound and return flights in sequence.
+
 ![Demo](./demo/rt_booked.gif)
 
 #### View Flight Details
+Access your bookings from _My Trips_:
+
+- View all your current and past bookings
+- See flight details, seat numbers, and booking status
+- Cancel bookings
+- Modify seat selections
+
 ![Demo](./demo/viewdetails.gif)
 
+#### Profile Management
+Manage your profile from the profile page:
+
+- Edit existing information (name, phone number, passport number, and birth date)
+- Use the profile for quick booking
+- 
+![Demo](./demo/profilemanage.gif)
 
 
-
----
 ---
 
 
