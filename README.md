@@ -39,7 +39,9 @@ Booking and seat selection require a login, and users attempting to proceed with
 | User   | customer.one@example.com  | password123 |
 | User   | customer.two@example.com  | password123 |
 #### User Sign in
+
 ![Demo](./demo/signin.gif)
+
 #### User Create Account
 ![Demo](./demo/register.gif)
 #### Admin Sign in
