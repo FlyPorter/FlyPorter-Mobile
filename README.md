@@ -383,7 +383,7 @@ cp .env.dev .env
 **Start the frontend server:**
 
 ```
-npm start
+npx expo start
 ```
 
 This will start the Expo development server. You can then:
@@ -391,6 +391,8 @@ This will start the Expo development server. You can then:
 - Press `i` to open iOS simulator
 - Press `a` to open Android emulator
 - Scan the QR code with Expo Go app on your physical device
+
+> **Note:** The frontend is currently configured to use the deployed API at `https://api.flyporter.website/api`. If you want to test with a local backend server, you can modify the `API_BASE_URL` in `frontend/src/services/api.ts` to `http://localhost:3000/api` (or your local backend URL). Make sure your backend server is running before starting the frontend.
 
 ### Postman Collection Demo
 
@@ -504,10 +506,10 @@ FlyPorter uses [Expo Application Services (EAS)](https://expo.dev/eas) for build
 
 #### Latest Builds
 
-| Platform | Build Link |
-| -------- | ---------- |
-| Android | [Download from EAS](https://expo.dev/accounts/ece1778-flyporter-mobile/projects/flyporter/builds/9ef85805-37f4-4c84-9432-fa96a264aee7) |
-| iOS | [Download from EAS](https://expo.dev/accounts/ece1778-flyporter-mobile/projects/flyporter/builds/0d3a8357-c64c-4c26-9ddc-f08b2d4e37b2) |
+| Platform | Build Link                                                                                                                             |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Android  | [Download from EAS](https://expo.dev/accounts/ece1778-flyporter-mobile/projects/flyporter/builds/9ef85805-37f4-4c84-9432-fa96a264aee7) |
+| iOS      | [Download from EAS](https://expo.dev/accounts/ece1778-flyporter-mobile/projects/flyporter/builds/0d3a8357-c64c-4c26-9ddc-f08b2d4e37b2) |
 
 #### Prerequisites
 
@@ -758,3 +760,11 @@ eas build --profile development --platform ios --local
   - My Bookings list and booking details
   - User profile management
   - Push notifications screen
+
+### Yiyang Wang (todo)
+
+- Backend (Admin):
+  - database setup
+  - admin apis
+  - some customer and api doc
+  - docker
