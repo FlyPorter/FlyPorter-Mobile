@@ -344,6 +344,13 @@ docker compose down       # stop and remove containers
 
 FlyPorter uses [Expo Application Services (EAS)](https://expo.dev/eas) for building and deploying the mobile application.
 
+#### Latest Builds
+
+| Platform | Build Link |
+| -------- | ---------- |
+| Android | [Download from EAS](https://expo.dev/accounts/ece1778-flyporter-mobile/projects/flyporter/builds/9ef85805-37f4-4c84-9432-fa96a264aee7) |
+| iOS | [Download from EAS](https://expo.dev/accounts/ece1778-flyporter-mobile/projects/flyporter/builds/0d3a8357-c64c-4c26-9ddc-f08b2d4e37b2) |
+
 #### Prerequisites
 
 1. Install EAS CLI globally:
