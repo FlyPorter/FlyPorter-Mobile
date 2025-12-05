@@ -49,6 +49,7 @@ interface Flight {
   availableSeats: number;
   origin: { code: string; name: string; city: string; timezone?: string };
   destination: { code: string; name: string; city: string; timezone?: string };
+  hasDeparted?: boolean; // Mark if flight has already departed
 }
 
 export default function FlightResultsScreen({ route, navigation }: any) {
@@ -105,16 +106,11 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       });
       
       if (response.data?.success && response.data?.data) {
-        // Get current time for filtering past flights
+        // Get current time for marking past flights
         const now = new Date();
         
-        // Map flights to our format and filter out past flights
+        // Map flights to our format and mark departed flights (don't filter them out)
         const filteredFlights = response.data.data
-          .filter((flight: any) => {
-            // Filter out flights that have already departed
-            const departureTime = new Date(flight.departure_time);
-            return departureTime > now;
-          })
           .map((flight: any) => {
             const departureTime = new Date(flight.departure_time);
             const arrivalTime = new Date(flight.arrival_time);
@@ -124,6 +120,9 @@ export default function FlightResultsScreen({ route, navigation }: any) {
             
             const originAirportCode = flight.route?.origin_airport_code || '';
             const destAirportCode = flight.route?.destination_airport_code || '';
+            
+            // Check if flight has departed
+            const hasDeparted = departureTime < now;
             
             return {
               id: String(flight.flight_id),
@@ -152,6 +151,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
                 city: flight.route?.destination_airport?.city_name || '',
                 timezone: flight.route?.destination_airport?.city?.timezone || getAirportTimezone(destAirportCode)
               },
+              hasDeparted, // Mark if departed
             };
           });
         
@@ -193,16 +193,11 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       });
       
       if (response.data?.success && response.data?.data) {
-        // Get current time for filtering past flights
+        // Get current time for marking past flights
         const now = new Date();
         
-        // Map flights to our format and filter out past flights
+        // Map flights to our format and mark departed flights (don't filter them out)
         const filteredFlights = response.data.data
-          .filter((flight: any) => {
-            // Filter out flights that have already departed
-            const departureTime = new Date(flight.departure_time);
-            return departureTime > now;
-          })
           .map((flight: any) => {
             const departureTime = new Date(flight.departure_time);
             const arrivalTime = new Date(flight.arrival_time);
@@ -212,6 +207,9 @@ export default function FlightResultsScreen({ route, navigation }: any) {
             
             const originAirportCode = flight.route?.origin_airport_code || '';
             const destAirportCode = flight.route?.destination_airport_code || '';
+            
+            // Check if flight has departed
+            const hasDeparted = departureTime < now;
             
             return {
               id: String(flight.flight_id),
@@ -240,6 +238,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
                 city: flight.route?.destination_airport?.city_name || '',
                 timezone: flight.route?.destination_airport?.city?.timezone || getAirportTimezone(destAirportCode)
               },
+              hasDeparted, // Mark if departed
             };
           });
         
@@ -255,12 +254,22 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   };
 
   const handleSelectOutbound = (flight: Flight) => {
+    // Prevent selection of departed flights
+    if (flight.hasDeparted) {
+      Alert.alert('Flight Departed', 'This flight has already departed and cannot be selected.');
+      return;
+    }
     // Allow selection without authentication - user can view flights
     setSelectedOutbound(flight);
     setSelectedReturn(null); // Reset return selection when outbound changes
   };
 
   const handleSelectReturn = (flight: Flight) => {
+    // Prevent selection of departed flights
+    if (flight.hasDeparted) {
+      Alert.alert('Flight Departed', 'This flight has already departed and cannot be selected.');
+      return;
+    }
     // Allow selection without authentication - user can view flights
     setSelectedReturn(flight);
   };
@@ -396,16 +405,29 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         style={[
           styles.flightCard,
           isSelected && styles.selectedFlightCard,
+          flight.hasDeparted && styles.departedFlightCard,
         ]}
         onPress={() => onSelect(flight)}
+        disabled={flight.hasDeparted}
+        activeOpacity={flight.hasDeparted ? 1 : 0.7}
       >
         <View style={styles.flightCardContent}>
           {/* Times and Price Row */}
           <View style={styles.flightTopSection}>
             {/* Departure */}
             <View style={styles.flightTimeSection}>
-              <Text style={styles.flightTimeLarge}>{departureTimeDisplay}</Text>
-              <Text style={styles.flightAirportCode}>{flight.origin.code}</Text>
+              <Text style={[
+                styles.flightTimeLarge,
+                flight.hasDeparted && styles.departedText
+              ]}>
+                {departureTimeDisplay}
+              </Text>
+              <Text style={[
+                styles.flightAirportCode,
+                flight.hasDeparted && styles.departedText
+              ]}>
+                {flight.origin.code}
+              </Text>
             </View>
 
             {/* Spacer for duration line */}
@@ -413,12 +435,27 @@ export default function FlightResultsScreen({ route, navigation }: any) {
 
             {/* Arrival */}
             <View style={styles.flightTimeSection}>
-              <Text style={styles.flightTimeLarge}>{arrivalTimeDisplay}</Text>
-              <Text style={styles.flightAirportCode}>{flight.destination.code}</Text>
+              <Text style={[
+                styles.flightTimeLarge,
+                flight.hasDeparted && styles.departedText
+              ]}>
+                {arrivalTimeDisplay}
+              </Text>
+              <Text style={[
+                styles.flightAirportCode,
+                flight.hasDeparted && styles.departedText
+              ]}>
+                {flight.destination.code}
+              </Text>
             </View>
 
             {/* Price */}
-            <Text style={styles.flightPrice}>${flight.price}</Text>
+            <Text style={[
+              styles.flightPrice,
+              flight.hasDeparted && styles.departedText
+            ]}>
+              ${flight.price}
+            </Text>
           </View>
 
           {/* Duration Line */}
@@ -426,18 +463,36 @@ export default function FlightResultsScreen({ route, navigation }: any) {
             <View style={styles.flightDot} />
             <View style={styles.flightLine} />
             <View style={styles.flightDurationBadge}>
-              <Text style={styles.flightDuration}>{flight.duration}</Text>
+              <Text style={[
+                styles.flightDuration,
+                flight.hasDeparted && styles.departedText
+              ]}>
+                {flight.duration}
+              </Text>
             </View>
             <View style={styles.flightLine} />
             <View style={styles.flightDot} />
           </View>
 
-          {/* Non-stop label */}
-          <Text style={styles.flightNonStop}>Non-stop</Text>
+          {/* Non-stop or Departed label */}
+          <View style={styles.flightStatusRow}>
+            <Text style={[
+              styles.flightNonStop,
+              flight.hasDeparted && styles.departedText
+            ]}>
+              Non-stop
+            </Text>
+            {flight.hasDeparted && (
+              <View style={styles.departedBadge}>
+                <Ionicons name="time-outline" size={14} color={colors.error} />
+                <Text style={styles.departedBadgeText}>has taken off</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Selection Status */}
-        {isSelected && (
+        {isSelected && !flight.hasDeparted && (
           <View style={styles.selectionStatus}>
             <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
             <Text style={styles.selectionText}>Selected</Text>
@@ -660,6 +715,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: colors.surface || '#f5f5f5',
   },
+  departedFlightCard: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.7,
+  },
+  departedText: {
+    color: colors.textSecondary,
+    opacity: 0.6,
+  },
   flightCardContent: {
     flexDirection: 'column',
   },
@@ -726,6 +789,25 @@ const styles = StyleSheet.create({
   flightNonStop: {
     color: colors.textSecondary,
     fontSize: 10,
+  },
+  flightStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  departedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 4,
+  },
+  departedBadgeText: {
+    fontSize: 10,
+    color: colors.error,
+    fontWeight: '600',
   },
   selectionStatus: {
     flexDirection: 'row',
