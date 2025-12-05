@@ -61,6 +61,9 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
       // Backend returns { success, data: [...seats] }
       const seatData = response.data?.data || response.data || [];
       
+      // Get all current seat numbers (for both single and multi-passenger seat changes)
+      const allCurrentSeats = currentSeatNumbers || (currentSeatNumber ? [currentSeatNumber] : []);
+      
       // Transform API seats to our format
       const transformedSeats: Seat[] = seatData.map((seat: any) => {
         // Extract row and column from seat_number (e.g., "1A" -> row: 1, column: "A")
@@ -76,12 +79,17 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
         if (priceModifier >= 2.0) seatType = 'first';
         else if (priceModifier > 1.0) seatType = 'business';
         
+        // If this is the user's current seat (seat change mode), treat it as available
+        // so they can select it back if they change their mind
+        const isCurrentSeat = allCurrentSeats.includes(seat.seat_number);
+        const status = (seat.is_available || isCurrentSeat) ? 'available' : 'occupied';
+        
         return {
           id: seat.seat_number,
           row,
           column,
           type: seatType,
-          status: seat.is_available ? 'available' : 'occupied',
+          status,
           price: 0, // Deprecated - use price_modifier instead
           price_modifier: priceModifier,
           seat_number: seat.seat_number,
