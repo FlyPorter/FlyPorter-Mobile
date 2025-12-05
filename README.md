@@ -824,3 +824,6 @@ eas build --profile development --platform ios --local
   - Developed APIs to retrieve passenger tickets and generate ticket PDFs
   - Built admin-side operational APIs and prepared corresponding API documentation
   - Created Docker Compose configurations to run the db and backend
+
+
+![Image](https://github.com/user-attachments/assets/bdb0053d-9487-4aaa-bd61-3c9cf9ab568c)
