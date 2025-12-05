@@ -121,13 +121,10 @@ async function main() {
     { city_name: "Victoria", country: "Canada", timezone: "America/Vancouver" },
   ];
 
-  for (const city of cities) {
-    await prisma.city.upsert({
-      where: { city_name: city.city_name },
-      update: {},
-      create: city,
-    });
-  }
+  await prisma.city.createMany({
+    data: cities,
+    skipDuplicates: true,
+  });
   console.log(`Created ${cities.length} cities`);
 
   // ============================================
@@ -148,13 +145,10 @@ async function main() {
     { airport_code: "YYJ", city_name: "Victoria", airport_name: "Victoria International Airport" },
   ];
 
-  for (const airport of airports) {
-    await prisma.airport.upsert({
-      where: { airport_code: airport.airport_code },
-      update: {},
-      create: airport,
-    });
-  }
+  await prisma.airport.createMany({
+    data: airports,
+    skipDuplicates: true,
+  });
   console.log(`Created ${airports.length} airports`);
 
   // ============================================
@@ -167,13 +161,10 @@ async function main() {
     { airline_code: "AC", airline_name: "Air Canada" },
   ];
 
-  for (const airline of airlines) {
-    await prisma.airline.upsert({
-      where: { airline_code: airline.airline_code },
-      update: {},
-      create: airline,
-    });
-  }
+  await prisma.airline.createMany({
+    data: airlines,
+    skipDuplicates: true,
+  });
   console.log(`Created ${airlines.length} airlines`);
 
   // ============================================
@@ -193,19 +184,22 @@ async function main() {
     }
   }
 
-  for (const route of routes) {
-    const existing = await prisma.route.findFirst({
-      where: route,
-    });
+  await prisma.route.createMany({
+    data: routes,
+    skipDuplicates: true,
+  });
 
-    if (!existing) {
-      const created = await prisma.route.create({
-        data: route,
-      });
-      routeMap[`${route.origin_airport_code}_${route.destination_airport_code}`] = created.route_id;
-    } else {
-      routeMap[`${route.origin_airport_code}_${route.destination_airport_code}`] = existing.route_id;
-    }
+  // Fetch all routes to populate routeMap
+  const allRoutes = await prisma.route.findMany({
+    select: {
+      route_id: true,
+      origin_airport_code: true,
+      destination_airport_code: true,
+    },
+  });
+
+  for (const route of allRoutes) {
+    routeMap[`${route.origin_airport_code}_${route.destination_airport_code}`] = route.route_id;
   }
   console.log(`Created or verified ${routes.length} routes (fully connected network)`);
 
@@ -457,8 +451,8 @@ async function main() {
 
   const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
-  const dateRangeStart = new Date(2025, 10, 27); // November 27, 2025
-  const dateRangeEnd = new Date(2025, 11, 11); // December 11, 2025
+  const dateRangeStart = new Date(2025, 11, 7); // December 7, 2025
+  const dateRangeEnd = new Date(2025, 11, 31); // December 31, 2025
 
   const travelDates: Date[] = [];
   for (let date = new Date(dateRangeStart); date <= dateRangeEnd; date = new Date(date.getTime() + DAY_IN_MS)) {
@@ -502,33 +496,71 @@ async function main() {
     }
   }
 
-  let flightCount = 0;
-  for (const flightData of flightsToCreate) {
-    const existing = await prisma.flight.findFirst({
+  // Check existing flights to avoid duplicates
+  const existingFlights = await prisma.flight.findMany({
+    where: {
+      departure_time: {
+        gte: dateRangeStart,
+        lte: dateRangeEnd,
+      },
+    },
+    select: {
+      route_id: true,
+      departure_time: true,
+    },
+  });
+
+  const existingFlightKeys = new Set(
+    existingFlights.map(
+      (f) => `${f.route_id}_${f.departure_time.toISOString()}`
+    )
+  );
+
+  const newFlights = flightsToCreate.filter(
+    (f) => !existingFlightKeys.has(`${f.route_id}_${f.departure_time.toISOString()}`)
+  );
+
+  if (newFlights.length > 0) {
+    // Bulk insert flights
+    await prisma.flight.createMany({
+      data: newFlights,
+      skipDuplicates: true,
+    });
+
+    // Fetch the newly created flights to get their IDs
+    const createdFlights = await prisma.flight.findMany({
       where: {
-        route_id: flightData.route_id,
-        departure_time: flightData.departure_time,
+        departure_time: {
+          gte: dateRangeStart,
+          lte: dateRangeEnd,
+        },
+      },
+      select: {
+        flight_id: true,
       },
     });
 
-    if (!existing) {
-      const flight = await prisma.flight.create({
-        data: flightData,
-      });
+    // Generate all seats for all flights
+    const allSeats: Array<{
+      flight_id: number;
+      seat_number: string;
+      class: SeatClass;
+      price_modifier: number;
+      is_available: boolean;
+    }> = [];
 
-      const seats = generateSeats(flight.flight_id);
-      await prisma.seat.createMany({
-        data: seats,
-        skipDuplicates: true,
-      });
-
-      flightCount++;
+    for (const flight of createdFlights) {
+      allSeats.push(...generateSeats(flight.flight_id));
     }
-  }
 
-  if (flightCount > 0) {
+    // Bulk insert all seats
+    await prisma.seat.createMany({
+      data: allSeats,
+      skipDuplicates: true,
+    });
+
     console.log(
-      `Created ${flightCount} flights with ${seatCapacityPerFlight} seats each between ${dateRangeStart.toDateString()} and ${dateRangeEnd.toDateString()}`
+      `Created ${newFlights.length} flights with ${seatCapacityPerFlight} seats each between ${dateRangeStart.toDateString()} and ${dateRangeEnd.toDateString()}`
     );
   } else {
     console.log("Flights already exist for the specified date range");
