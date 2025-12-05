@@ -270,6 +270,19 @@ async function createBookingInTransaction(
 ) {
     const { user_id, flight_id, seat_number } = input;
 
+    // 0. Check if user already has a confirmed booking for this flight
+    const existingBooking = await tx.booking.findFirst({
+        where: {
+            user_id,
+            flight_id,
+            status: "confirmed",
+        },
+    });
+
+    if (existingBooking) {
+        throw new Error("You already have a confirmed booking for this flight. The same passenger cannot book the same flight multiple times.");
+    }
+
     // 1. Get flight details for price calculation
     const flight = await tx.flight.findUnique({
         where: { flight_id },

@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme/theme';
 import DatePicker from '../../components/DatePicker';
 import { useAuth } from '../../context/AuthContext';
-import { profileAPI } from '../../services/api';
+import { profileAPI, bookingAPI } from '../../services/api';
 
 interface PassengerInfo {
   firstName: string;
@@ -48,6 +48,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
   );
   const [profileDetails, setProfileDetails] = useState<PassengerInfo | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [checkingBooking, setCheckingBooking] = useState(false);
   const formatDateForInput = (dateValue?: string | Date | null) => {
     if (!dateValue) return '';
     try {
@@ -150,8 +151,50 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
     setPassengerData(updated);
   };
 
-  const applyProfileToPassenger = () => {
+  const applyProfileToPassenger = async () => {
     if (!profileDetails) return;
+    
+    setCheckingBooking(true);
+    
+    // Check if user already has a booking for this flight before filling profile
+    if (isAuthenticated) {
+      try {
+        const response = await bookingAPI.getMyBookings('upcoming');
+        const bookingsData = response.data?.data || response.data || [];
+        
+        // Get flight IDs to check
+        const flightIdsToCheck: number[] = [];
+        if (isRoundTrip) {
+          const outboundId = outboundFlight?.flight_id || outboundFlight?.id;
+          const returnId = returnFlight?.flight_id || returnFlight?.id;
+          if (outboundId) flightIdsToCheck.push(Number(outboundId));
+          if (returnId) flightIdsToCheck.push(Number(returnId));
+        } else {
+          const flightId = flight?.flight_id || flight?.id;
+          if (flightId) flightIdsToCheck.push(Number(flightId));
+        }
+        
+        // Check if any existing booking matches the flight(s) we're trying to book
+        for (const booking of bookingsData) {
+          const bookingFlightId = booking.flight?.flight_id || booking.flight_id;
+          if (bookingFlightId && flightIdsToCheck.includes(Number(bookingFlightId))) {
+            Alert.alert(
+              'Duplicate Booking Detected',
+              'You already have a booking for this flight with your profile information. The same passenger cannot book the same flight multiple times.\n\nPlease check "My Trips" to view your existing bookings.',
+              [{ text: 'OK' }]
+            );
+            setCheckingBooking(false);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to check existing bookings:', error);
+        // Continue anyway
+      }
+    }
+    
+    setCheckingBooking(false);
+    
     setPassengerData((current) => {
       const updated = [...current];
       const target = { ...updated[0] };
@@ -174,7 +217,7 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
 
   const shouldShowProfileButton = isAuthenticated && profileDetails && passengers >= 1;
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     // Validate all fields
     for (let i = 0; i < passengerData.length; i++) {
       const passenger = passengerData[i];
@@ -183,6 +226,47 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
         return;
       }
     }
+
+    setCheckingBooking(true);
+
+    // Check if user already has a booking for this flight
+    if (isAuthenticated) {
+      try {
+        const response = await bookingAPI.getMyBookings('upcoming');
+        const bookingsData = response.data?.data || response.data || [];
+        
+        // Get flight IDs to check
+        const flightIdsToCheck: number[] = [];
+        if (isRoundTrip) {
+          const outboundId = outboundFlight?.flight_id || outboundFlight?.id;
+          const returnId = returnFlight?.flight_id || returnFlight?.id;
+          if (outboundId) flightIdsToCheck.push(Number(outboundId));
+          if (returnId) flightIdsToCheck.push(Number(returnId));
+        } else {
+          const flightId = flight?.flight_id || flight?.id;
+          if (flightId) flightIdsToCheck.push(Number(flightId));
+        }
+        
+        // Check if any existing booking matches the flight(s) we're trying to book
+        for (const booking of bookingsData) {
+          const bookingFlightId = booking.flight?.flight_id || booking.flight_id;
+          if (bookingFlightId && flightIdsToCheck.includes(Number(bookingFlightId))) {
+            Alert.alert(
+              'Duplicate Booking Detected',
+              'You already have a booking for this flight. The same passenger cannot book the same flight multiple times.\n\nPlease check "My Trips" to view your existing bookings.',
+              [{ text: 'OK' }]
+            );
+            setCheckingBooking(false);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to check existing bookings:', error);
+        // Continue anyway - backend will catch it
+      }
+    }
+
+    setCheckingBooking(false);
 
     navigation.navigate('Payment', {
       flight,
@@ -243,23 +327,23 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
               <TouchableOpacity
                 style={[
                   styles.profileFillButton,
-                  profileLoading && styles.profileFillButtonDisabled,
+                  (profileLoading || checkingBooking) && styles.profileFillButtonDisabled,
                 ]}
                 onPress={applyProfileToPassenger}
-                disabled={profileLoading}
+                disabled={profileLoading || checkingBooking}
               >
                 <Ionicons
                   name="person-circle"
                   size={20}
-                  color={profileLoading ? colors.disabled : colors.primary}
+                  color={(profileLoading || checkingBooking) ? colors.disabled : colors.primary}
                 />
                 <Text
                   style={[
                     styles.profileFillButtonText,
-                    profileLoading && styles.profileFillButtonTextDisabled,
+                    (profileLoading || checkingBooking) && styles.profileFillButtonTextDisabled,
                   ]}
                 >
-                  {profileLoading ? 'Loading profile...' : 'Use My Profile'}
+                  {profileLoading ? 'Loading profile...' : checkingBooking ? 'Checking...' : 'Use My Profile'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -407,9 +491,19 @@ export default function PassengerInfoScreen({ route, navigation }: any) {
 
       {/* Footer */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
-          <Text style={styles.continueButtonText}>Continue to Payment</Text>
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
+        <TouchableOpacity 
+          style={[styles.continueButton, checkingBooking && styles.continueButtonDisabled]} 
+          onPress={handleContinue}
+          disabled={checkingBooking}
+        >
+          {checkingBooking ? (
+            <Text style={styles.continueButtonText}>Checking booking...</Text>
+          ) : (
+            <>
+              <Text style={styles.continueButtonText}>Continue to Payment</Text>
+              <Ionicons name="arrow-forward" size={20} color="#fff" />
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -600,6 +694,10 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: 8,
     gap: spacing.sm,
+  },
+  continueButtonDisabled: {
+    backgroundColor: colors.border,
+    opacity: 0.7,
   },
   continueButtonText: {
     ...typography.button,

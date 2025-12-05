@@ -340,11 +340,19 @@ export default function PaymentScreen({ route, navigation }: any) {
           ]
         );
       } else {
-        const errorMessage = error.response?.data?.error || 
+        let errorMessage = error.response?.data?.error || 
                            error.response?.data?.message || 
                            error.message || 
                            'Failed to process payment. Please try again.';
-        Alert.alert('Error', errorMessage);
+        
+        // Provide user-friendly message for duplicate booking error
+        if (errorMessage.includes('already have a confirmed booking') || 
+            errorMessage.includes('same passenger') || 
+            errorMessage.includes('same flight multiple times')) {
+          errorMessage = 'You already have a booking for this flight. The same passenger cannot book the same flight multiple times. Please check your bookings or contact support.';
+        }
+        
+        Alert.alert('Booking Error', errorMessage);
       }
     }
   };
