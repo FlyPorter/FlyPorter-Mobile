@@ -21,6 +21,46 @@ Backend stack: Express.js + TypeScript + Prisma + PostgreSQL
 
 ---
 
+## Team Infomation
+| Name        | Student Number | Email                         |
+| ----------- | -------------- | ----------------------------- |
+| Yiyang Liu  | 1011770512     | yiyang.liu@mail.utoronto.ca        |
+| Zihan Wan   | 1011617779     | zihanzane.wan@mail.utoronto.ca         |
+| Yiyang Wang | 1010033278     | ydev.wang@mail.utoronto.ca       |
+| Yuan Wang   | 1002766526     | ywang.wang@mail.utoronto.ca         |
+
+---
+
+## Motivation
+
+Booking a flight on mobile should be fast, transparent, and trustworthy, yet common apps still hide fees, present cluttered flows, or fail to show accurate seat availability. Travelers end up guessing whether their chosen seat will stick, while operators juggle outdated tools that make correcting inventory or prices slow. That friction erodes trust and pushes users to phone support or competitor sites.
+
+FlyPorter Mobile targets three groups we saw impacted most: business travelers who need reliable, same-day booking on the go; students and price-sensitive flyers who want clear options without surprise charges; and airline staff who must keep routes, fares, and seats in sync. The app centers on clarity (step-by-step search → seat map → checkout), real-time accuracy (live seat locking and pricing from our API), and ownership (account-based bookings, profile reuse, and in-app change/cancel flows). Local and push notifications keep travelers informed of booking status without relying on email alone, and the admin workspace lets staff adjust routes, seats, and bookings with immediate effect. By reducing ambiguity and response time for both sides, FlyPorter turns routine travel tasks into a predictable, mobile-first experience.
+
+---
+
+## Objectives
+
+- Deliver a transparent, mobile-first booking flow (search → results → seat map → checkout → confirmation → My Trips) that removes hidden costs and unclear steps from the traveler journey.
+- Keep inventory and pricing trustworthy with backend-driven seat availability, locking, and transactional booking to avoid double-sell, plus clear loading/error/retry states.
+- Empower customers to self-serve: account-based bookings, profile reuse for faster checkout, in-app change/cancel, and timely local/push notifications so travelers aren’t dependent on email.
+- Give airline staff operational control with role-based admin tools to manage routes, flights, seats, and pricing, ensuring customer and admin views stay in sync.
+- Provide secure authentication (email/password with JWTs) and authorization (customer vs. admin) across mobile and API layers.
+- Align with course technical requirements using the stack actually built: React Native + Expo with TypeScript and React Navigation, Context-based state plus AsyncStorage for persistence, Expo Notifications, and an Express/Prisma/PostgreSQL backend. Deliver deployable Expo EAS builds (Android link provided) with demo and documentation.
+
+---
+
+## Technical Stack
+
+1. React Native and Expo (TypeScript): Expo 54 on React Native 0.81; multi-screen app with React Navigation (stack plus bottom tabs). Wrapped in Gesture Handler root view; theming via React Native Paper.
+2. State management and persistence: Context providers (auth, notifications, navigation helpers) and AsyncStorage for auth tokens, cached user/profile data, preferences, and pending navigation handoffs.
+3. Notifications: expo-notifications on device for local and push handling; backend uses expo-server-sdk to send booking confirmation/cancellation pushes after users register their Expo push token.
+4. Backend integration: Axios client (`frontend/src/services/api.ts`) talks to the Express 5 + TypeScript API backed by Prisma ORM and PostgreSQL for auth, flights, seats, bookings, profiles, notifications, and invoices.
+5. Authentication and authorization: Email/password with JWTs; role-based access (customer/admin) enforced in the API and reflected in navigation (customer vs admin tabs).
+6. Mobile sensors and device APIs: expo-location to prefill the nearest departure airport on search when permission is granted.
+7. External services: Invoice PDFs generated in the backend; supports DigitalOcean Spaces for signed URLs when configured, with a direct download fallback otherwise.
+8. Deployment and tooling: EAS builds for mobile distribution (Android link provided); Docker Compose for backend + PostgreSQL in local development.
+
 ---
 
 ## User Guide
