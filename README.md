@@ -334,6 +334,232 @@ docker ps                 # list running containers
 docker compose down       # stop and remove containers
 ```
 
+---
+
+## Deployment Information
+
+### Mobile App Deployment with Expo EAS Build
+
+FlyPorter uses [Expo Application Services (EAS)](https://expo.dev/eas) for building and deploying the mobile application.
+
+#### Prerequisites
+
+1. Install EAS CLI globally:
+   ```sh
+   npm install -g eas-cli
+   ```
+
+2. Log in to your Expo account:
+   ```sh
+   eas login
+   ```
+
+3. Navigate to the frontend folder:
+   ```sh
+   cd frontend
+   ```
+
+#### Build Profiles
+
+The project has three build profiles configured in `eas.json`:
+
+| Profile       | Purpose                          | Distribution |
+| ------------- | -------------------------------- | ------------ |
+| `development` | Development client for debugging | Internal     |
+| `preview`     | Internal testing builds          | Internal     |
+| `production`  | App Store / Play Store releases  | Store        |
+
+#### Building for iOS
+
+**Development Build (for simulators and registered devices):**
+```sh
+eas build --profile development --platform ios
 ```
 
+**Preview Build (for internal testers):**
+```sh
+eas build --profile preview --platform ios
 ```
+
+**Production Build (for App Store submission):**
+```sh
+eas build --profile production --platform ios
+```
+
+> Note: iOS builds require an Apple Developer account. EAS will guide you through creating necessary certificates and provisioning profiles.
+
+#### Building for Android
+
+**Development Build:**
+```sh
+eas build --profile development --platform android
+```
+
+**Preview Build (APK for internal testing):**
+```sh
+eas build --profile preview --platform android
+```
+
+**Production Build (AAB for Play Store):**
+```sh
+eas build --profile production --platform android
+```
+
+#### Building for Both Platforms
+
+```sh
+eas build --profile <profile-name> --platform all
+```
+
+#### Building APK Files (Android)
+
+By default, production builds generate AAB (Android App Bundle) files for Play Store. To build an APK file for direct installation or testing:
+
+**Option 1: Use the preview profile (already configured for APK)**
+```sh
+eas build --profile preview --platform android
+```
+
+**Option 2: Create a custom APK profile**
+
+Add an `apk` profile to your `eas.json`:
+```json
+{
+  "build": {
+    "apk": {
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}
+```
+
+Then run:
+```sh
+eas build --profile apk --platform android
+```
+
+**Option 3: One-time APK build without modifying config**
+
+You can override the build type directly:
+```sh
+eas build --platform android --profile production --local --output ./app.apk
+```
+
+After the build completes, download the APK from the Expo dashboard or use:
+```sh
+eas build:list --platform android
+# Copy the build URL and download, or click the link in the Expo dashboard
+```
+
+#### Building IPA Files (iOS)
+
+IPA files are generated for iOS distribution. Different build types produce different IPA variants:
+
+**Development IPA (for registered devices):**
+```sh
+eas build --profile development --platform ios
+```
+
+**Ad-Hoc IPA (for internal testers via TestFlight alternative):**
+```sh
+eas build --profile preview --platform ios
+```
+> The preview profile is configured with `enterpriseProvisioning: "adhoc"` for internal distribution.
+
+**App Store IPA (for TestFlight and App Store):**
+```sh
+eas build --profile production --platform ios
+```
+
+**Downloading Built Files:**
+
+After a successful build:
+1. Visit [expo.dev](https://expo.dev) and navigate to your project builds
+2. Click on the completed build to download the IPA/APK file
+3. Or use the CLI to get the download URL:
+   ```sh
+   eas build:list --platform ios --status finished
+   ```
+
+**Installing IPA on Device:**
+- For ad-hoc builds: Use tools like Apple Configurator, Diawi, or install via Xcode
+- For App Store builds: Upload to App Store Connect for TestFlight distribution
+
+**Installing APK on Device:**
+- Transfer the APK to your Android device
+- Enable "Install from unknown sources" in device settings
+- Open the APK file to install
+
+#### Submitting to App Stores
+
+**Submit to Apple App Store:**
+```sh
+eas submit --platform ios
+```
+
+**Submit to Google Play Store:**
+```sh
+eas submit --platform android
+```
+
+Or build and submit in one command:
+```sh
+eas build --profile production --platform ios --auto-submit
+eas build --profile production --platform android --auto-submit
+```
+
+#### Over-the-Air (OTA) Updates
+
+FlyPorter supports OTA updates via EAS Update. Push updates without rebuilding:
+
+```sh
+eas update --branch production --message "Description of update"
+```
+
+For preview channel:
+```sh
+eas update --branch preview --message "Description of update"
+```
+
+#### Checking Build Status
+
+View your builds on the Expo dashboard or via CLI:
+```sh
+eas build:list
+```
+
+#### Local Builds (Optional)
+
+For local builds without EAS cloud:
+```sh
+eas build --profile development --platform android --local
+eas build --profile development --platform ios --local
+```
+
+> Note: Local iOS builds require a macOS machine with Xcode installed.
+
+---
+
+## Individual Contributions
+
+### Yuan Wang
+- Frontend (Admin):
+  - Admin Dashboard with overview statistics
+  - Bookings management list view
+  - Booking details view and cancellation
+  - Customer and flight management interface
+
+### Yiyang Liu
+- Frontend (Customer):
+  - Flight search with one-way and round-trip support
+  - Airport picker with autocomplete suggestions
+  - Flight results listing and details view
+  - Interactive seat selection with cabin class support
+  - Passenger information form
+  - Payment processing screen
+  - Booking confirmation and summary
+  - My Bookings list and booking details
+  - User profile management
+  - Push notifications screen
