@@ -179,9 +179,43 @@ Manage your profile from the profile page:
 
 ## Development Guide
 
+### Frontend Setup
+
+Under `frontend` folder:
+
+```
+cd frontend
+```
+
+**Install dependencies:**
+
+```
+npm install
+```
+
+**Copy .env.dev to your .env (if available):**
+
+```
+cp .env.dev .env
+```
+
+**Start the frontend server:**
+
+```
+npx expo start
+```
+
+This will start the Expo development server. You can then:
+
+- Press `i` to open iOS simulator
+- Press `a` to open Android emulator
+- Scan the QR code with Expo Go app on your physical device
+
+> **Note:** The frontend is currently configured to use the deployed API at `https://api.flyporter.website/api`, so you don't need to do anything about database or backend setup. If you want to test with a local backend server, you can modify the `API_BASE_URL` in `frontend/src/services/api.ts` to `http://localhost:3000/api` (or your local backend URL). Make sure your backend server is running before starting the frontend.
+
 ### Docker Instructions
 
-If you use Docker to run the application:
+Make sure your docker app is running. If you use Docker to run the backend and db:
 
 **Start the application:**
 
@@ -210,12 +244,27 @@ The following guide has been tested on:
 - Node.js: v20.15.0
 - npm: 10.7.0
 - PostgreSQL: 14.16 (Homebrew)
+- Expo SDK: ~54.0.24
+- React Native: 0.81.5
+- React: 19.1.0
+- TypeScript: ^5.3.0
 
 **Windows PowerShell:**
 
 - Node.js: v20.17.0
 - npm: 10.8.2
 - PostgreSQL x64: 17.3
+- Expo SDK: ~54.0.24
+- React Native: 0.81.5
+- React: 19.1.0
+- TypeScript: ^5.3.0
+
+**Mobile Development Tools:**
+
+- Expo CLI (installed via `npm install -g expo-cli` or use `npx expo`)
+- Expo Go app (for testing on physical devices)
+- iOS Simulator (macOS only, via Xcode)
+- Android Emulator (via Android Studio)
 
 **Verified Browser:**
 
@@ -240,7 +289,7 @@ The following guide has been tested on:
      brew services start postgresql
      ```
 
-     or if your version is 16:
+     default is @14，if your version is 16:
 
      ```
      brew services start postgresql@16
@@ -277,7 +326,7 @@ cd backend
 2. For convenience, we provide `.env.dev` for local development. Simply copy it to `.env` and update the database credentials. For custom Google OAuth 2.0 and DigitalOcean Spaces configuration, use `.env.example` as a template.
 
    ```
-   cp .env.dev .env
+   cp .env.example .env
    ```
 
    > Note: You need to change `username` to your psql username, `password` to your psql password.
@@ -369,16 +418,12 @@ Under `backend` folder:
 3. Access the backend API documentation at `https://editor.swagger.io/`
 
    ```
-   Import FlyPorterAPI_openapi.yaml
+   Import Import FlyPorter/FlyPorter.ymal
    ```
 
-   Or import `FlyPorterAPI.postman_collection.json` to your Postman
+   Or import `FlyPorter/backend/FlyPorterAPI.postman_collection.json` to your Postman
 
-   > Note: To transfer Postman collection to OpenAPI format:
-   >
-   > ```
-   > postman-to-openapi FlyPorterAPI.postman_collection.json FlyPorterAPI_openapi.yaml
-   > ```
+   > Note: check detailed postman demo instructions below
 
 ### Test Backend APIs Manually after Database Setup and Server Start
 
@@ -400,40 +445,6 @@ The seed script will create:
 
 After running the seed script, you can test the APIs by using the Postman Collection or access the swagger UI at `https://editor.swagger.io/` to test the APIs.
 
-### Frontend Setup
-
-Under `frontend` folder:
-
-```
-cd frontend
-```
-
-**Install dependencies:**
-
-```
-npm install
-```
-
-**Copy .env.dev to your .env (if available):**
-
-```
-cp .env.dev .env
-```
-
-**Start the frontend server:**
-
-```
-npx expo start
-```
-
-This will start the Expo development server. You can then:
-
-- Press `i` to open iOS simulator
-- Press `a` to open Android emulator
-- Scan the QR code with Expo Go app on your physical device
-
-> **Note:** The frontend is currently configured to use the deployed API at `https://api.flyporter.website/api`. If you want to test with a local backend server, you can modify the `API_BASE_URL` in `frontend/src/services/api.ts` to `http://localhost:3000/api` (or your local backend URL). Make sure your backend server is running before starting the frontend.
-
 ### Postman Collection Demo
 
 #### 1. Create a Workspace
@@ -442,7 +453,7 @@ Start by creating a new workspace in Postman.
 
 #### 2. Import API Collection
 
-Import the `FlyPorterAPI.postman_collection.json` file into your workspace.
+Import the `FlyPorter/backend/FlyPorterAPI.postman_collection.json` file into your workspace.
 
 #### 3. Create an Environment
 
@@ -457,7 +468,7 @@ The environment is used to store the authentication token after login (the token
 All sample inputs (parameters, request bodies) are pre-configured.  
 As a developer, you do not need to manually input anything — just select the API you want to test and click Send.
 
----
+## ![Image](https://github.com/user-attachments/assets/ccecb479-7129-4099-aa6f-c14a52e4a7e5)
 
 ## Contribution Guidelines
 
@@ -483,6 +494,11 @@ We welcome contributions to FlyPorter! This document outlines the process and gu
 
 ### Development Process
 
+**Follow the devlopment guide:**
+
+- Setup database and enviornments
+- Check APIs using Postman or Swagger
+
 **Make your changes following our coding standards:**
 
 - Use TypeScript for both frontend and backend development
@@ -493,7 +509,6 @@ We welcome contributions to FlyPorter! This document outlines the process and gu
 
 **Test your changes:**
 
-- Test with swagger editor, import `/openapi.json`
 - Test using the Postman Collection
 - Test the mobile app on both iOS and Android platforms
 - Write your own test cases
@@ -801,10 +816,11 @@ eas build --profile development --platform ios --local
   - User profile management
   - Push notifications screen
 
-### Yiyang Wang (todo)
+### Yiyang Wang
 
 - Backend (Admin):
-  - database setup
-  - admin apis
-  - some customer and api doc
-  - docker
+  - Designed and implemented the flyporter database schema using Prisma
+  - Implemented user authentication and authorization using JWT
+  - Developed APIs to retrieve passenger tickets and generate ticket PDFs
+  - Built admin-side operational APIs and prepared corresponding API documentation
+  - Created Docker Compose configurations to run the db and backend
