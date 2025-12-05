@@ -143,15 +143,59 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
   };
 
   const handleContinue = async () => {
-    if (selectedSeats.length !== passengers) {
+    // For seat changes, allow partial selection (user may want to keep some original seats)
+    const isSeatChangeMode = (bookingIds && bookingIds.length > 0) || (bookingId && currentSeatNumber);
+    const oldSeats = currentSeatNumbers || (currentSeatNumber ? [currentSeatNumber] : []);
+    
+    if (!isSeatChangeMode && selectedSeats.length !== passengers) {
       Alert.alert(
         'Incomplete Selection',
         `Please select ${passengers} seat${passengers > 1 ? 's' : ''}`
       );
       return;
     }
+    
+    // For seat changes with multiple passengers, handle partial selection
+    let finalSelectedSeats = [...selectedSeats];
+    if (isSeatChangeMode && selectedSeats.length < passengers) {
+      // User selected fewer seats than total passengers
+      // Fill remaining slots with unchanged original seats
+      const unchangedSeats = oldSeats.filter(seat => !finalSelectedSeats.includes(seat));
+      
+      while (finalSelectedSeats.length < passengers && unchangedSeats.length > 0) {
+        finalSelectedSeats.push(unchangedSeats.shift()!);
+      }
+      
+      // Confirm with user
+      const keptSeats = finalSelectedSeats.filter(seat => oldSeats.includes(seat));
+      const changedSeats = finalSelectedSeats.filter(seat => !oldSeats.includes(seat));
+      
+      if (keptSeats.length > 0) {
+        const confirmed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Confirm Seat Change',
+            `You are changing ${changedSeats.length} seat${changedSeats.length > 1 ? 's' : ''} to: ${changedSeats.join(', ')}\n\nThe following seat${keptSeats.length > 1 ? 's' : ''} will remain unchanged: ${keptSeats.join(', ')}\n\nDo you want to continue?`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Continue', onPress: () => resolve(true) }
+            ]
+          );
+        });
+        
+        if (!confirmed) return;
+      }
+      
+      // If still not enough seats, show error
+      if (finalSelectedSeats.length < passengers) {
+        Alert.alert(
+          'Incomplete Selection',
+          `Please select ${passengers} seat${passengers > 1 ? 's' : ''}. You currently have ${finalSelectedSeats.length} selected.`
+        );
+        return;
+      }
+    }
 
-    const selectedSeatDetails = seats.filter(s => selectedSeats.includes(s.id));
+    const selectedSeatDetails = seats.filter(s => finalSelectedSeats.includes(s.id));
     
     // Get the price_modifier for the first selected seat (for single passenger)
     const firstSeatModifier = selectedSeatDetails[0]?.price_modifier || 1.0;
@@ -159,14 +203,15 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
     // If updating existing booking(s) (from booking details)
     if (bookingIds && bookingIds.length > 0) {
       // Multi-passenger seat changes
-      const oldSeats = currentSeatNumbers || [];
-      const newSeats = selectedSeats;
+      const newSeats = finalSelectedSeats;
       
-      // Check if any seats actually changed
-      const seatsChanged = oldSeats.length !== newSeats.length || 
-        !oldSeats.every((seat: string, idx: number) => seat === newSeats[idx]);
+      // Check if any seats actually changed (compare as sets, not by order)
+      const oldSeatsSet = new Set(oldSeats);
+      const newSeatsSet = new Set(newSeats);
+      const hasAnyChange = oldSeats.some(seat => !newSeatsSet.has(seat)) || 
+                           newSeats.some(seat => !oldSeatsSet.has(seat));
       
-      if (!seatsChanged) {
+      if (!hasAnyChange) {
         Alert.alert('No Change', 'You selected the same seats.');
         return;
       }
@@ -226,16 +271,41 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
                 try {
                   setLoading(true);
                   
-                  // Update each booking with its new seat
-                  for (let i = 0; i < bookingIds.length && i < newSeats.length; i++) {
-                    await bookingAPI.changeSeat(bookingIds[i], {
-                      seat_number: newSeats[i],
+                  // Smart seat matching: only update seats that actually changed
+                  // Create a mapping of which bookings need to be updated to which new seats
+                  const seatUpdates: Array<{ bookingId: string; oldSeat: string; newSeat: string }> = [];
+                  
+                  // Find seats that need to be changed (not in old seats, or changed position)
+                  const seatsToChange = newSeats.filter(seat => !oldSeats.includes(seat));
+                  const seatsToKeep = newSeats.filter(seat => oldSeats.includes(seat));
+                  const seatsToRelease = oldSeats.filter(seat => !newSeats.includes(seat));
+                  
+                  // Match seats to release with seats to change
+                  for (let i = 0; i < seatsToRelease.length && i < seatsToChange.length; i++) {
+                    const oldSeatIdx = oldSeats.indexOf(seatsToRelease[i]);
+                    if (oldSeatIdx >= 0 && oldSeatIdx < bookingIds.length) {
+                      seatUpdates.push({
+                        bookingId: bookingIds[oldSeatIdx],
+                        oldSeat: seatsToRelease[i],
+                        newSeat: seatsToChange[i],
+                      });
+                    }
+                  }
+                  
+                  console.log('Seat updates:', seatUpdates);
+                  
+                  // Execute seat changes
+                  for (const update of seatUpdates) {
+                    await bookingAPI.changeSeat(update.bookingId, {
+                      seat_number: update.newSeat,
                     });
                   }
                   
                   Alert.alert(
                     'Success', 
-                    `Seats changed to: ${newSeats.join(', ')}. No refund has been issued.`,
+                    seatUpdates.length > 0 
+                      ? `${seatUpdates.length} seat${seatUpdates.length > 1 ? 's' : ''} changed to: ${seatsToChange.join(', ')}. No refund has been issued.`
+                      : 'No seats were changed.',
                     [
                       {
                         text: 'OK',
@@ -279,27 +349,44 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
       try {
         setLoading(true);
         
-        // Debug: Log seat change details
-        console.log('Changing seats:', {
+        // Smart seat matching: only update seats that actually changed
+        const seatsToChange = newSeats.filter(seat => !oldSeats.includes(seat));
+        const seatsToRelease = oldSeats.filter(seat => !newSeats.includes(seat));
+        
+        console.log('Smart seat matching:', {
           oldSeats,
           newSeats,
-          bookingIds,
-          selectedSeatDetails: selectedSeatDetails.map(s => ({
-            number: s.seat_number,
-            available: seats.find(seat => seat.id === s.seat_number)?.status
-          }))
+          seatsToChange,
+          seatsToRelease,
         });
         
-        // Update each booking with its new seat
-        for (let i = 0; i < bookingIds.length && i < newSeats.length; i++) {
-          await bookingAPI.changeSeat(bookingIds[i], {
-            seat_number: newSeats[i],
+        // Match seats to release with seats to change
+        const seatUpdates: Array<{ bookingId: string; oldSeat: string; newSeat: string }> = [];
+        for (let i = 0; i < seatsToRelease.length && i < seatsToChange.length; i++) {
+          const oldSeatIdx = oldSeats.indexOf(seatsToRelease[i]);
+          if (oldSeatIdx >= 0 && oldSeatIdx < bookingIds.length) {
+            seatUpdates.push({
+              bookingId: bookingIds[oldSeatIdx],
+              oldSeat: seatsToRelease[i],
+              newSeat: seatsToChange[i],
+            });
+          }
+        }
+        
+        console.log('Seat updates:', seatUpdates);
+        
+        // Execute seat changes
+        for (const update of seatUpdates) {
+          await bookingAPI.changeSeat(update.bookingId, {
+            seat_number: update.newSeat,
           });
         }
         
         Alert.alert(
           'Success', 
-          `Seats changed to: ${newSeats.join(', ')}.`,
+          seatUpdates.length > 0
+            ? `${seatUpdates.length} seat${seatUpdates.length > 1 ? 's' : ''} changed to: ${seatsToChange.join(', ')}.`
+            : 'No seats were changed.',
           [
             {
               text: 'OK',
