@@ -478,11 +478,23 @@ export default function MyBookingsScreen() {
 
         {/* Booking Header */}
         <View style={styles.bookingHeader}>
-          <View>
+          <View style={styles.bookingHeaderText}>
             <Text style={styles.bookingReference}>{booking.bookingReference}</Text>
             <Text style={styles.bookingDate}>
               Booked on {new Date(booking.bookingDate).toLocaleDateString()}
             </Text>
+            {booking.flight.departure_time && (
+              <View style={styles.flightDateRow}>
+                <Ionicons name="calendar-outline" size={14} color={colors.primary} />
+                <Text style={styles.flightDateText}>
+                  Flight on {new Date(booking.flight.departure_time).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })}
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.airlineLogo}>
             <Ionicons name="airplane" size={24} color={colors.primary} />
@@ -787,6 +799,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  bookingHeaderText: {
+    flex: 1,
+  },
   bookingReference: {
     ...typography.h4,
     color: colors.text,
@@ -796,6 +811,17 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: spacing.xs,
+  },
+  flightDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xs,
+  },
+  flightDateText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
   },
   airlineLogo: {
     width: 48,
