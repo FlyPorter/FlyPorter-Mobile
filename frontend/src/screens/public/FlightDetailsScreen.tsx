@@ -54,6 +54,21 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
   // Use the appropriate flight(s) based on trip type
   const mainFlight = isRoundTrip ? outboundFlight : flight;
 
+  // Check if flight has departed
+  const checkIfDeparted = () => {
+    const now = new Date();
+    if (isRoundTrip) {
+      const outboundDeparture = new Date(outboundFlight.departure_time || outboundFlight.departureTime);
+      const returnDeparture = new Date(returnFlight.departure_time || returnFlight.departureTime);
+      return outboundDeparture < now || returnDeparture < now;
+    } else {
+      const departureTime = new Date(flight.departure_time || flight.departureTime);
+      return departureTime < now;
+    }
+  };
+
+  const hasFlightDeparted = checkIfDeparted();
+
   useEffect(() => {
     // Only fetch flight details if not viewing from a booking
     if (!bookingId) {
@@ -169,8 +184,31 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
   }
 
   const handleBookFlight = () => {
-    // Allow unauthenticated users to proceed - they'll be prompted to login at payment
+    // Check if flight(s) have already departed
+    const now = new Date();
+    
     if (isRoundTrip) {
+      const outboundDeparture = new Date(outboundFlight.departure_time || outboundFlight.departureTime);
+      const returnDeparture = new Date(returnFlight.departure_time || returnFlight.departureTime);
+      
+      if (outboundDeparture < now) {
+        Alert.alert(
+          'Flight Departed',
+          'The outbound flight has already departed. Please search for a different flight.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+        return;
+      }
+      
+      if (returnDeparture < now) {
+        Alert.alert(
+          'Flight Departed',
+          'The return flight has already departed. Please search for a different flight.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+        return;
+      }
+      
       // For round trip, pass both flights
       navigation.navigate('SeatSelection', { 
         outboundFlight, 
@@ -179,6 +217,17 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
         isRoundTrip: true
       });
     } else {
+      const departureTime = new Date(flight.departure_time || flight.departureTime);
+      
+      if (departureTime < now) {
+        Alert.alert(
+          'Flight Departed',
+          'This flight has already departed. Please search for a different flight.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+        return;
+      }
+      
       // For one way, pass single flight
       navigation.navigate('SeatSelection', { 
         flight, 
@@ -191,6 +240,16 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.content}>
+        {/* Warning Banner for Departed Flights */}
+        {hasFlightDeparted && (
+          <View style={styles.warningBanner}>
+            <Ionicons name="warning" size={24} color={colors.error} />
+            <Text style={styles.warningText}>
+              This flight has already departed and cannot be booked.
+            </Text>
+          </View>
+        )}
+
         {/* Flight Header */}
         <View style={styles.headerCard}>
           <View style={styles.airlineHeader}>
@@ -539,8 +598,8 @@ export default function FlightDetailsScreen({ route, navigation }: any) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Book Button - Only show if not viewing from booking */}
-      {!bookingId && (
+      {/* Book Button - Only show if not viewing from booking and flight hasn't departed */}
+      {!bookingId && !hasFlightDeparted && (
         <View style={styles.footer}>
           <View style={styles.footerPrice}>
             <Text style={styles.footerPriceLabel}>Total</Text>
@@ -784,6 +843,20 @@ const styles = StyleSheet.create({
   bookButtonText: {
     ...typography.button,
     color: '#fff',
+  },
+  warningBanner: {
+    backgroundColor: '#FEE2E2',
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FCA5A5',
+  },
+  warningText: {
+    ...typography.body1,
+    color: colors.error,
+    flex: 1,
   },
 });
 

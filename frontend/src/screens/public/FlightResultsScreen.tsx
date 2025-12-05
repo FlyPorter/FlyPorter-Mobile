@@ -105,8 +105,16 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       });
       
       if (response.data?.success && response.data?.data) {
-        // Map flights to our format
+        // Get current time for filtering past flights
+        const now = new Date();
+        
+        // Map flights to our format and filter out past flights
         const filteredFlights = response.data.data
+          .filter((flight: any) => {
+            // Filter out flights that have already departed
+            const departureTime = new Date(flight.departure_time);
+            return departureTime > now;
+          })
           .map((flight: any) => {
             const departureTime = new Date(flight.departure_time);
             const arrivalTime = new Date(flight.arrival_time);
@@ -185,8 +193,16 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       });
       
       if (response.data?.success && response.data?.data) {
-        // Map flights to our format
+        // Get current time for filtering past flights
+        const now = new Date();
+        
+        // Map flights to our format and filter out past flights
         const filteredFlights = response.data.data
+          .filter((flight: any) => {
+            // Filter out flights that have already departed
+            const departureTime = new Date(flight.departure_time);
+            return departureTime > now;
+          })
           .map((flight: any) => {
             const departureTime = new Date(flight.departure_time);
             const arrivalTime = new Date(flight.arrival_time);

@@ -280,7 +280,14 @@ function buildDateRange(date: string): FlightSearchFilters["departureDateRange"]
   const start = new Date(`${date}T00:00:00.000Z`);
   if (Number.isNaN(start.getTime())) return null;
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-  return { start, end };
+  
+  // If the selected date is today, use current time as start to exclude past flights
+  const now = new Date();
+  const actualStart = start.getTime() < now.getTime() && now.getTime() < end.getTime() 
+    ? now 
+    : start;
+  
+  return { start: actualStart, end };
 }
 
 function parseNonNegativeNumber(value: string): number | null {

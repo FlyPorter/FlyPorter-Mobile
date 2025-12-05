@@ -86,6 +86,15 @@ export default function FlightSearchScreen({ navigation, route }: any) {
   const [returnDate, setReturnDate] = useState('');
   const [passengers, setPassengers] = useState(1);
 
+  // Get today's date in local timezone (YYYY-MM-DD format)
+  const getTodayDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Validate if the airport/city is in the correct format: "City (CODE)"
   const isValidAirport = (value: string) => {
     return /^.+ \(\w{3}\)$/.test(value);
@@ -322,7 +331,7 @@ export default function FlightSearchScreen({ navigation, route }: any) {
                       value={departDate}
                       onChange={setDepartDate}
                       placeholder="Select departure date"
-                      minimumDate={new Date().toISOString().split('T')[0]}
+                      minimumDate={getTodayDateString()}
                       compact={true}
                     />
                   </View>
@@ -336,7 +345,7 @@ export default function FlightSearchScreen({ navigation, route }: any) {
                         value={departDate}
                         onChange={setDepartDate}
                         placeholder="Select dates"
-                        minimumDate={new Date().toISOString().split('T')[0]}
+                        minimumDate={getTodayDateString()}
                         compact={true}
                       />
                     </View>
@@ -351,7 +360,7 @@ export default function FlightSearchScreen({ navigation, route }: any) {
                         value={returnDate}
                         onChange={setReturnDate}
                         placeholder="Select date"
-                        minimumDate={departDate || new Date().toISOString().split('T')[0]}
+                        minimumDate={departDate || getTodayDateString()}
                         initialDate={departDate}
                         compact={true}
                       />
