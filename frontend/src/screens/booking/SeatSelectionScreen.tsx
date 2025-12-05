@@ -212,29 +212,98 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
         );
         return;
       }
+      
+      // If price decreased, warn user about no refund policy
+      if (priceDifference < -0.01) {
+        Alert.alert(
+          'Lower Price Seat',
+          `The new seats cost $${Math.abs(priceDifference).toFixed(2)} less than your current seats. However, no refund will be issued for the price difference. Do you want to continue with the seat change?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Continue',
+              onPress: async () => {
+                try {
+                  setLoading(true);
+                  
+                  // Update each booking with its new seat
+                  for (let i = 0; i < bookingIds.length && i < newSeats.length; i++) {
+                    await bookingAPI.changeSeat(bookingIds[i], {
+                      seat_number: newSeats[i],
+                    });
+                  }
+                  
+                  Alert.alert(
+                    'Success', 
+                    `Seats changed to: ${newSeats.join(', ')}. No refund has been issued.`,
+                    [
+                      {
+                        text: 'OK',
+                        onPress: () => {
+                          navigation.navigate('Tabs', { 
+                            screen: 'BookingsTab' 
+                          } as never);
+                        },
+                      },
+                    ]
+                  );
+                } catch (error: any) {
+                  let errorMessage = error.response?.data?.message || 
+                                     error.message || 
+                                     'Failed to change seats. Please try again.';
+                  
+                  // Better error message for seat unavailability
+                  if (error.response?.status === 409 || errorMessage.includes('not available')) {
+                    errorMessage = 'One or more selected seats are no longer available. Please refresh and select different seats.';
+                  }
+                  
+                  Alert.alert('Seat Change Failed', errorMessage, [
+                    {
+                      text: 'Refresh',
+                      onPress: () => {
+                        loadSeats(); // Reload seats to get fresh availability
+                      },
+                    },
+                  ]);
+                } finally {
+                  setLoading(false);
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
 
+      // Price is the same, proceed directly
       try {
         setLoading(true);
         
-        // Update each booking with its new seat (price same or lower, no payment needed)
+        // Debug: Log seat change details
+        console.log('Changing seats:', {
+          oldSeats,
+          newSeats,
+          bookingIds,
+          selectedSeatDetails: selectedSeatDetails.map(s => ({
+            number: s.seat_number,
+            available: seats.find(seat => seat.id === s.seat_number)?.status
+          }))
+        });
+        
+        // Update each booking with its new seat
         for (let i = 0; i < bookingIds.length && i < newSeats.length; i++) {
           await bookingAPI.changeSeat(bookingIds[i], {
             seat_number: newSeats[i],
           });
         }
         
-        const priceMessage = priceDifference < -0.01 
-          ? ` You saved $${Math.abs(priceDifference).toFixed(2)}!`
-          : '';
-        
         Alert.alert(
           'Success', 
-          `Seats changed to: ${newSeats.join(', ')}.${priceMessage}`,
+          `Seats changed to: ${newSeats.join(', ')}.`,
           [
             {
               text: 'OK',
               onPress: () => {
-                // Navigate back to My Trips tab
                 navigation.navigate('Tabs', { 
                   screen: 'BookingsTab' 
                 } as never);
@@ -243,10 +312,23 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
           ]
         );
       } catch (error: any) {
-        const errorMessage = error.response?.data?.message || 
+        let errorMessage = error.response?.data?.message || 
                            error.message || 
                            'Failed to change seats. Please try again.';
-        Alert.alert('Error', errorMessage);
+        
+        // Better error message for seat unavailability
+        if (error.response?.status === 409 || errorMessage.includes('not available')) {
+          errorMessage = 'One or more selected seats are no longer available. Please refresh and select different seats.';
+        }
+        
+        Alert.alert('Seat Change Failed', errorMessage, [
+          {
+            text: 'Refresh',
+            onPress: () => {
+              loadSeats(); // Reload seats to get fresh availability
+            },
+          },
+        ]);
       } finally {
         setLoading(false);
       }
@@ -299,27 +381,90 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
         );
         return;
       }
+      
+      // If price decreased, warn user about no refund policy
+      if (priceDifference < -0.01) {
+        Alert.alert(
+          'Lower Price Seat',
+          `The new seat costs $${Math.abs(priceDifference).toFixed(2)} less than your current seat. However, no refund will be issued for the price difference. Do you want to continue with the seat change?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Continue',
+              onPress: async () => {
+                try {
+                  setLoading(true);
+                  
+                  await bookingAPI.changeSeat(bookingId, {
+                    seat_number: newSeatNumber,
+                  });
+                  
+                  Alert.alert(
+                    'Success', 
+                    `Your seat has been changed to ${newSeatNumber}. No refund has been issued.`,
+                    [
+                      {
+                        text: 'OK',
+                        onPress: () => {
+                          navigation.navigate('Tabs', { 
+                            screen: 'BookingsTab' 
+                          } as never);
+                        },
+                      },
+                    ]
+                  );
+                } catch (error: any) {
+                  let errorMessage = error.response?.data?.message || 
+                                     error.message || 
+                                     'Failed to change seat. Please try again.';
+                  
+                  // Better error message for seat unavailability
+                  if (error.response?.status === 409 || errorMessage.includes('not available')) {
+                    errorMessage = 'The selected seat is no longer available. Please refresh and select a different seat.';
+                  }
+                  
+                  Alert.alert('Seat Change Failed', errorMessage, [
+                    {
+                      text: 'Refresh',
+                      onPress: () => {
+                        loadSeats(); // Reload seats to get fresh availability
+                      },
+                    },
+                  ]);
+                } finally {
+                  setLoading(false);
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
 
+      // Price is the same, proceed directly
       try {
         setLoading(true);
         
-        // Use the dedicated seat change API (price same or lower)
+        // Debug: Log seat change details
+        console.log('Changing seat:', {
+          bookingId,
+          currentSeat: currentSeatNumber,
+          newSeat: newSeatNumber,
+          seatStatus: seats.find(s => s.id === newSeatNumber)?.status,
+          seatAvailable: seats.find(s => s.id === newSeatNumber)?.status === 'available'
+        });
+        
         await bookingAPI.changeSeat(bookingId, {
           seat_number: newSeatNumber,
         });
         
-        const priceMessage = priceDifference < -0.01 
-          ? ` You saved $${Math.abs(priceDifference).toFixed(2)}!`
-          : '';
-        
         Alert.alert(
           'Success', 
-          `Your seat has been changed to ${newSeatNumber}.${priceMessage}`,
+          `Your seat has been changed to ${newSeatNumber}.`,
           [
             {
               text: 'OK',
               onPress: () => {
-                // Navigate back to My Trips tab
                 navigation.navigate('Tabs', { 
                   screen: 'BookingsTab' 
                 } as never);
@@ -328,10 +473,23 @@ export default function SeatSelectionScreen({ route, navigation }: any) {
           ]
         );
       } catch (error: any) {
-        const errorMessage = error.response?.data?.message || 
+        let errorMessage = error.response?.data?.message || 
                            error.message || 
                            'Failed to change seat. Please try again.';
-        Alert.alert('Error', errorMessage);
+        
+        // Better error message for seat unavailability
+        if (error.response?.status === 409 || errorMessage.includes('not available')) {
+          errorMessage = 'The selected seat is no longer available. Please refresh and select a different seat.';
+        }
+        
+        Alert.alert('Seat Change Failed', errorMessage, [
+          {
+            text: 'Refresh',
+            onPress: () => {
+              loadSeats(); // Reload seats to get fresh availability
+            },
+          },
+        ]);
       } finally {
         setLoading(false);
       }

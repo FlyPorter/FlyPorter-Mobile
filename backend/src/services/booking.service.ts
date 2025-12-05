@@ -727,6 +727,82 @@ export async function changeBookingSeat(params: {
         if (!trimmedSeatNumber) {
             throw new Error("New seat_number is required");
         }
+        
+        // If user is selecting the same seat they already have, just return the booking unchanged
+        if (trimmedSeatNumber === booking.seat_number) {
+            // No change needed, return current booking
+            const unchanged = await tx.booking.findFirst({
+                where: { booking_id: booking.booking_id },
+                select: {
+                    booking_id: true,
+                    user_id: true,
+                    flight_id: true,
+                    seat_number: true,
+                    booking_time: true,
+                    status: true,
+                    total_price: true,
+                    confirmation_code: true,
+                    updated_at: true,
+                    user: {
+                        select: {
+                            user_id: true,
+                            email: true,
+                            customer_info: {
+                                select: {
+                                    full_name: true,
+                                },
+                            },
+                        },
+                    },
+                    flight: {
+                        select: {
+                            flight_id: true,
+                            departure_time: true,
+                            arrival_time: true,
+                            base_price: true,
+                            route: {
+                                select: {
+                                    route_id: true,
+                                    origin_airport: {
+                                        select: {
+                                            airport_code: true,
+                                            airport_name: true,
+                                            city_name: true,
+                                        },
+                                    },
+                                    destination_airport: {
+                                        select: {
+                                            airport_code: true,
+                                            airport_name: true,
+                                            city_name: true,
+                                        },
+                                    },
+                                },
+                            },
+                            airline: {
+                                select: {
+                                    airline_code: true,
+                                    airline_name: true,
+                                },
+                            },
+                        },
+                    },
+                    seat: {
+                        select: {
+                            seat_number: true,
+                            class: true,
+                            price_modifier: true,
+                        },
+                    },
+                },
+            });
+            
+            if (!unchanged) {
+                throw new Error("Failed to load booking");
+            }
+            
+            return unchanged;
+        }
 
         // 2. Ensure new seat exists on same flight
         const newSeat = await tx.seat.findUnique({
