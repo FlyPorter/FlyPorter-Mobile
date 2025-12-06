@@ -17,11 +17,7 @@
 
 ---
 
-Backend stack: Express.js + TypeScript + Prisma + PostgreSQL
-
----
-
-## Team Infomation
+## Team Information
 | Name        | Student Number | Email                         |
 | ----------- | -------------- | ----------------------------- |
 | Yiyang Liu  | 1011770512     | yiyang.liu@mail.utoronto.ca        |
@@ -33,9 +29,9 @@ Backend stack: Express.js + TypeScript + Prisma + PostgreSQL
 
 ## Motivation
 
-Booking a flight on mobile should be fast, transparent, and trustworthy, yet common apps still hide fees, present cluttered flows, or fail to show accurate seat availability. Travelers end up guessing whether their chosen seat will stick, while operators juggle outdated tools that make correcting inventory or prices slow. That friction erodes trust and pushes users to phone support or competitor sites.
+Booking a flight on mobile should be fast, transparent, and trustworthy. Many apps still hide fees, feel cluttered, or miss accurate seat availability, so travelers guess whether a chosen seat will stick and operators struggle to correct inventory or prices. That erodes trust and sends people to phone support or other sites.
 
-FlyPorter Mobile targets three groups we saw impacted most: business travelers who need reliable, same-day booking on the go; students and price-sensitive flyers who want clear options without surprise charges; and airline staff who must keep routes, fares, and seats in sync. The app centers on clarity (step-by-step search → seat map → checkout), real-time accuracy (live seat locking and pricing from our API), and ownership (account-based bookings, profile reuse, and in-app change/cancel flows). Local and push notifications keep travelers informed of booking status without relying on email alone, and the admin workspace lets staff adjust routes, seats, and bookings with immediate effect. By reducing ambiguity and response time for both sides, FlyPorter turns routine travel tasks into a predictable, mobile-first experience.
+FlyPorter Mobile focuses on three groups: business travelers who need reliable same day booking on the go, students and budget minded flyers who want clear options without surprise charges, and airline staff who must keep routes, fares, and seats aligned. The app emphasizes clarity (step by step search → seat map → checkout), accurate data (live seat locking and pricing from our API), and user ownership (account based bookings, profile reuse, in app change and cancel). Local and push notifications keep travelers informed without relying only on email, and the admin workspace lets staff adjust routes, seats, and bookings immediately. By reducing ambiguity and response time for both sides, FlyPorter makes routine travel tasks predictable and mobile first.
 
 ---
 
@@ -60,6 +56,36 @@ FlyPorter Mobile targets three groups we saw impacted most: business travelers w
 6. Mobile sensors and device APIs: expo-location to prefill the nearest departure airport on search when permission is granted.
 7. External services: Invoice PDFs generated in the backend; supports DigitalOcean Spaces for signed URLs when configured, with a direct download fallback otherwise.
 8. Deployment and tooling: EAS builds for mobile distribution (Android link provided); Docker Compose for backend + PostgreSQL in local development.
+
+---
+
+## Features
+
+1) Customer experience  
+- Flight search without login: one way or round trip, dates, passengers, airport autocomplete, and nearest airport prefill using expo location when permission is granted.  
+- Results and details: flight list, detail screen, and seat map with availability from the backend; selection feeds directly into checkout.  
+- Booking flow: passenger info entry or profile reuse, price review, payment screen, confirmation code, and My Trips list with booking detail and cancellation.  
+- Notifications: expo notifications on device; backend sends push notifications (expo server sdk) for booking confirmation and cancellation once a push token is registered. An in app notifications screen tracks unread counts.  
+- Invoices and email: server generates PDF invoices per booking (download via API; optionally served from DigitalOcean Spaces). Booking confirmation emails use SendGrid with itinerary and invoice content.  
+- Profile: manage name, phone, passport, and reuse profile data during checkout.
+
+2) Admin tools  
+- Role based admin area with its own tab set: dashboard, bookings list and detail with cancel actions, and manage data screens for routes, flights, seats, pricing, and customers.  
+- Admin actions update the same Express/Prisma/PostgreSQL backend so customer and staff views stay in sync.
+
+3) Compliance with core requirements  
+- React Native and Expo with TypeScript and React Navigation multi screen flow.  
+- Context and AsyncStorage for auth state, notifications, preferences, and pending navigation.  
+- Expo notifications end to end (device client plus server side expo server sdk).  
+- Backend integration through Axios to Express/Prisma/PostgreSQL for auth, flights, seats, bookings, profiles, notifications, and invoices.  
+- EAS build provided (Android) for grading and testing.
+
+How these features meet the objectives  
+- Clarity and transparency: guided search to seat map to checkout, price review, and confirmation codes make the flow predictable.  
+- Trustworthy inventory and pricing: seat availability and pricing come from the backend and are locked during booking; invoices and confirmation emails give verifiable records.  
+- Self service for travelers: search without login, profile reuse, My Trips management, cancellations, and timely local and push notifications reduce reliance on support.  
+- Operational control for staff: admin dashboard, booking actions, and route and seat management keep customer and staff views consistent.  
+- Course-aligned delivery: React Native and Expo with TypeScript, Context and AsyncStorage, Expo notifications, backend integration, and shipped EAS build satisfy the core technical requirements while matching the project’s transparency and reliability goals.
 
 ---
 
@@ -825,5 +851,5 @@ eas build --profile development --platform ios --local
   - Built admin-side operational APIs and prepared corresponding API documentation
   - Created Docker Compose configurations to run the db and backend
 
-
+## Our Team!
 ![Image](https://github.com/user-attachments/assets/bdb0053d-9487-4aaa-bd61-3c9cf9ab568c)
