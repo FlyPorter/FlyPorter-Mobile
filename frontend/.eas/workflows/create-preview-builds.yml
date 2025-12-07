@@ -1,11 +1,11 @@
 name: Create Preview Builds
 
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'frontend/**'
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - 'frontend/**'
 
 jobs:
   build_android:
