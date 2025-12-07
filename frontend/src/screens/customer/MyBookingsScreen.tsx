@@ -80,7 +80,28 @@ interface Booking {
   bookingIds: string[]; // All booking IDs in this group
   bookingReference: string;
   status: 'confirmed' | 'cancelled' | 'completed';
-  flight: {
+  isRoundTrip?: boolean; // Flag for round trip
+  outboundFlight?: { // For round trip outbound
+    flightNumber: string;
+    airline: { name: string };
+    departureTime: string;
+    arrivalTime: string;
+    departure_time?: string;
+    arrival_time?: string;
+    origin: { code: string; city: string; timezone?: string };
+    destination: { code: string; city: string; timezone?: string };
+  };
+  returnFlight?: { // For round trip return
+    flightNumber: string;
+    airline: { name: string };
+    departureTime: string;
+    arrivalTime: string;
+    departure_time?: string;
+    arrival_time?: string;
+    origin: { code: string; city: string; timezone?: string };
+    destination: { code: string; city: string; timezone?: string };
+  };
+  flight: { // For one-way or backward compatibility
     flightNumber: string;
     airline: { name: string };
     departureTime: string;
@@ -91,6 +112,8 @@ interface Booking {
     destination: { code: string; city: string; timezone?: string };
   };
   seatNumbers: string[]; // All seat numbers for this group
+  outboundSeats?: string[]; // For round trip outbound seats
+  returnSeats?: string[]; // For round trip return seats
   seatClass?: number; // Seat price modifier (1.0, 1.5, 2.0)
   passengers: number; // Number of passengers (group size)
   totalAmount: number; // Sum of all bookings in group
@@ -300,10 +323,78 @@ export default function MyBookingsScreen() {
           totalAmount,
           bookingDate: first.departureTimestamp ? first.departureTimestamp.split('T')[0] : 
                       new Date().toISOString().split('T')[0],
+          _rawGroup: group, // Keep raw data for round trip detection
         };
       });
       
-      setBookings(transformedBookings);
+      // Detect and merge round-trip bookings
+      const mergedBookings: Booking[] = [];
+      const usedIds = new Set<string>();
+      
+      transformedBookings.forEach(booking1 => {
+        if (usedIds.has(booking1.id)) return;
+        
+        // Try to find a matching return flight
+        const matchingReturn = transformedBookings.find(booking2 => {
+          if (usedIds.has(booking2.id) || booking1.id === booking2.id) return false;
+          
+          // Check if routes are reversed
+          const isRouteReversed = 
+            booking1.flight.origin.code === booking2.flight.destination.code &&
+            booking1.flight.destination.code === booking2.flight.origin.code;
+          
+          // Check if booked at similar time (within 1 minute)
+          const rawGroup1 = (booking1 as any)._rawGroup?.[0];
+          const rawGroup2 = (booking2 as any)._rawGroup?.[0];
+          const timeGap = Math.abs(rawGroup1?.bookingTime - rawGroup2?.bookingTime);
+          const isBookedTogether = timeGap < 60000; // Within 60 seconds
+          
+          // Check if same status and passenger count
+          const isSameStatus = booking1.status === booking2.status;
+          const isSamePassengerCount = booking1.passengers === booking2.passengers;
+          
+          return isRouteReversed && isBookedTogether && isSameStatus && isSamePassengerCount;
+        });
+        
+        if (matchingReturn) {
+          // Determine which is outbound and which is return based on departure time
+          const booking1DepartureTime = new Date(booking1.flight.departure_time || '');
+          const booking2DepartureTime = new Date(matchingReturn.flight.departure_time || '');
+          const isBooking1First = booking1DepartureTime < booking2DepartureTime;
+          
+          const outbound = isBooking1First ? booking1 : matchingReturn;
+          const returnFlight = isBooking1First ? matchingReturn : booking1;
+          
+          // Create merged round-trip booking
+          mergedBookings.push({
+            id: outbound.id,
+            bookingIds: [...outbound.bookingIds, ...returnFlight.bookingIds],
+            bookingReference: outbound.bookingReference,
+            status: outbound.status,
+            isRoundTrip: true,
+            outboundFlight: outbound.flight,
+            returnFlight: returnFlight.flight,
+            flight: outbound.flight, // Keep for backward compatibility
+            outboundSeats: outbound.seatNumbers,
+            returnSeats: returnFlight.seatNumbers,
+            seatNumbers: outbound.seatNumbers, // Keep for backward compatibility
+            seatClass: outbound.seatClass,
+            passengers: outbound.passengers,
+            totalAmount: outbound.totalAmount + returnFlight.totalAmount,
+            bookingDate: outbound.bookingDate,
+          });
+          
+          usedIds.add(booking1.id);
+          usedIds.add(matchingReturn.id);
+        } else {
+          // Single flight booking
+          delete (booking1 as any)._rawGroup;
+          mergedBookings.push(booking1);
+          usedIds.add(booking1.id);
+        }
+      });
+      
+      setBookings(mergedBookings);
       setLoading(false);
       setRefreshing(false);
     } catch (error: any) {
@@ -479,15 +570,31 @@ export default function MyBookingsScreen() {
         {/* Booking Header */}
         <View style={styles.bookingHeader}>
           <View style={styles.bookingHeaderText}>
-            <Text style={styles.bookingReference}>{booking.bookingReference}</Text>
-            <Text style={styles.bookingDate}>
-              Booked on {new Date(booking.bookingDate).toLocaleDateString()}
+            <Text style={styles.bookingReference}>
+              {booking.isRoundTrip ? 'Round Trip' : booking.bookingReference}
             </Text>
-            {booking.flight.departure_time && (
+            <Text style={styles.bookingSubReference}>
+              {booking.bookingReference}
+            </Text>
+            {booking.isRoundTrip && booking.outboundFlight?.departure_time && booking.returnFlight?.departure_time ? (
               <View style={styles.flightDateRow}>
                 <Ionicons name="calendar-outline" size={14} color={colors.primary} />
                 <Text style={styles.flightDateText}>
-                  Flight on {new Date(booking.flight.departure_time).toLocaleDateString('en-US', {
+                  {new Date(booking.outboundFlight.departure_time).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                  })} - {new Date(booking.returnFlight.departure_time).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </Text>
+              </View>
+            ) : booking.flight?.departure_time && (
+              <View style={styles.flightDateRow}>
+                <Ionicons name="calendar-outline" size={14} color={colors.primary} />
+                <Text style={styles.flightDateText}>
+                  {new Date(booking.flight.departure_time).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric'
@@ -502,26 +609,101 @@ export default function MyBookingsScreen() {
         </View>
 
         {/* Flight Info */}
-        <View style={styles.flightInfo}>
-        <View style={styles.flightRoute}>
-          <View style={[styles.flightPoint, styles.flightPointLeft]}>
-              <Text style={styles.flightCode}>{booking.flight.origin.code}</Text>
-              <Text style={styles.flightCity}>{booking.flight.origin.city}</Text>
-              <Text style={styles.flightTime}>{booking.flight.departureTime}</Text>
+        {booking.isRoundTrip && booking.outboundFlight && booking.returnFlight ? (
+          <View style={styles.flightInfo}>
+            {/* Outbound Flight */}
+            <View style={styles.roundTripSection}>
+              <View style={styles.roundTripHeader}>
+                <Text style={styles.roundTripLabel}>Outbound</Text>
+                {booking.outboundFlight.departure_time && (
+                  <Text style={styles.roundTripDate}>
+                    {new Date(booking.outboundFlight.departure_time).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.flightRoute}>
+                <View style={[styles.flightPoint, styles.flightPointLeft]}>
+                  <Text style={styles.flightCode}>{booking.outboundFlight.origin.code}</Text>
+                  <Text style={styles.flightCity}>{booking.outboundFlight.origin.city}</Text>
+                  <Text style={styles.flightTime}>{booking.outboundFlight.departureTime}</Text>
+                </View>
+
+                <View style={styles.flightMiddle}>
+                  <Ionicons name="arrow-forward" size={20} color={colors.primary} />
+                  <Text style={styles.flightNumber}>{booking.outboundFlight.flightNumber}</Text>
+                </View>
+
+                <View style={[styles.flightPoint, styles.flightPointRight]}>
+                  <Text style={styles.flightCode}>{booking.outboundFlight.destination.code}</Text>
+                  <Text style={styles.flightCity}>{booking.outboundFlight.destination.city}</Text>
+                  <Text style={styles.flightTime}>{booking.outboundFlight.arrivalTime}</Text>
+                </View>
+              </View>
             </View>
 
-          <View style={styles.flightMiddle}>
-            <Ionicons name="arrow-forward" size={24} color={colors.primary} />
-            <Text style={styles.flightNumber}>{booking.flight.flightNumber}</Text>
-          </View>
+            {/* Divider */}
+            <View style={styles.roundTripDivider} />
 
-          <View style={[styles.flightPoint, styles.flightPointRight]}>
-              <Text style={styles.flightCode}>{booking.flight.destination.code}</Text>
-              <Text style={styles.flightCity}>{booking.flight.destination.city}</Text>
-              <Text style={styles.flightTime}>{booking.flight.arrivalTime}</Text>
+            {/* Return Flight */}
+            <View style={styles.roundTripSection}>
+              <View style={styles.roundTripHeader}>
+                <Text style={styles.roundTripLabel}>Return</Text>
+                {booking.returnFlight.departure_time && (
+                  <Text style={styles.roundTripDate}>
+                    {new Date(booking.returnFlight.departure_time).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.flightRoute}>
+                <View style={[styles.flightPoint, styles.flightPointLeft]}>
+                  <Text style={styles.flightCode}>{booking.returnFlight.origin.code}</Text>
+                  <Text style={styles.flightCity}>{booking.returnFlight.origin.city}</Text>
+                  <Text style={styles.flightTime}>{booking.returnFlight.departureTime}</Text>
+                </View>
+
+                <View style={styles.flightMiddle}>
+                  <Ionicons name="arrow-forward" size={20} color={colors.primary} />
+                  <Text style={styles.flightNumber}>{booking.returnFlight.flightNumber}</Text>
+                </View>
+
+                <View style={[styles.flightPoint, styles.flightPointRight]}>
+                  <Text style={styles.flightCode}>{booking.returnFlight.destination.code}</Text>
+                  <Text style={styles.flightCity}>{booking.returnFlight.destination.city}</Text>
+                  <Text style={styles.flightTime}>{booking.returnFlight.arrivalTime}</Text>
+                </View>
+              </View>
             </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.flightInfo}>
+            <View style={styles.flightRoute}>
+              <View style={[styles.flightPoint, styles.flightPointLeft]}>
+                <Text style={styles.flightCode}>{booking.flight.origin.code}</Text>
+                <Text style={styles.flightCity}>{booking.flight.origin.city}</Text>
+                <Text style={styles.flightTime}>{booking.flight.departureTime}</Text>
+              </View>
+
+              <View style={styles.flightMiddle}>
+                <Ionicons name="arrow-forward" size={24} color={colors.primary} />
+                <Text style={styles.flightNumber}>{booking.flight.flightNumber}</Text>
+              </View>
+
+              <View style={[styles.flightPoint, styles.flightPointRight]}>
+                <Text style={styles.flightCode}>{booking.flight.destination.code}</Text>
+                <Text style={styles.flightCity}>{booking.flight.destination.city}</Text>
+                <Text style={styles.flightTime}>{booking.flight.arrivalTime}</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Booking Details */}
         <View style={styles.bookingDetails}>
@@ -975,5 +1157,37 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.primary,
     fontWeight: '600',
+  },
+  // Round trip styles
+  roundTripSection: {
+    marginBottom: spacing.xs,
+  },
+  roundTripHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  roundTripLabel: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  roundTripDate: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  roundTripDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
+  },
+  bookingSubReference: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 });
