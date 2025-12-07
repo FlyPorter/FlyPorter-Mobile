@@ -205,7 +205,7 @@ Manage your profile from the profile page:
 
 - Edit existing information (name, phone number, passport number, and birth date)
 - Use the profile for quick booking
-  
+
 ![Demo](./demo/profilemanage.gif)
 
 ---
@@ -447,10 +447,10 @@ Under `backend` folder:
 3. Access the backend API documentation at `https://editor.swagger.io/`
 
    ```
-   Import Import FlyPorter/FlyPorter.ymal
+   Import Import documentation/FlyPorter.ymal
    ```
 
-   Or import `FlyPorter/backend/FlyPorterAPI.postman_collection.json` to your Postman
+   Or import `documentation/FlyPorterAPI.postman_collection.json` to your Postman
 
    > Note: check detailed postman demo instructions below
 
@@ -464,11 +464,11 @@ The seed script will create:
 - Demo customer users:
   - `customer.one@example.com` with password `password123`
   - `customer.two@example.com` with password `password123`
-- 4 Cities: Toronto, Vancouver, Montreal, Ottawa
-- 4 Airports: YYZ, YVR, YUL, YOW
+- 10 Cities: Toronto, Vancouver, Montreal, Ottawa, Calgary, Edmonton, Halifax, Winnipeg, Quebec City, Victoria
+- 10 Airports: YYZ, YVR, YUL, YOW, YYC, YEG, YHZ, YWG, YQB, YYJ
 - 2 Airlines: FlyPorter, Air Canada
-- 6 Routes between the cities
-- 5000 future-dated flights with generated seats (ready to book)
+- 90 Routes (fully connected network between all airports)
+- 4500 future-dated flights (2 per direction per day from Dec 7-31, 2025) with 36 seats each (ready to book)
 
 > Note: This step is optional, you can skip it if you do not want to populate data. Also, the seed script does not reset the database, so the id will increase in each run. You can check the seed.log file or your terminal output for the created data that can be used to test our application.
 
@@ -482,7 +482,7 @@ Start by creating a new workspace in Postman.
 
 #### 2. Import API Collection
 
-Import the `FlyPorter/backend/FlyPorterAPI.postman_collection.json` file into your workspace.
+Import the `documentation/FlyPorterAPI.postman_collection.json` file into your workspace.
 
 #### 3. Create an Environment
 
