@@ -595,6 +595,8 @@ FlyPorter uses [Expo Application Services (EAS)](https://expo.dev/eas) for build
 | Android  | [Download from EAS](https://expo.dev/accounts/ece1778-flyporter-mobile/projects/flyporter/builds/913b6dab-7bd4-4a06-9b3b-0b7f8f8fc076) |
 | iOS      | [Download from EAS](https://expo.dev/accounts/ece1778-flyporter-mobile/projects/flyporter/builds/5ddd618e-1197-48f5-b20c-bfa8305fd44e) |
 
+**Direct APK Download:** [Download APK from OneDrive](https://utoronto-my.sharepoint.com/:u:/g/personal/ywang_wang_mail_utoronto_ca/EUkQ6MsnHNpClTi6bReVJKIBOfSaj5oGKW605Do7F4SbkQ?e=wYG4vd)
+
 #### Installing the Android Build
 
 On devices running **Android 8.0 (API level 26) and higher**, you must navigate to the **Install unknown apps** system settings screen to enable app installations from a particular location (i.e. the web browser you are downloading the app from).
