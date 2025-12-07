@@ -57,7 +57,6 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   const { origin, destination, departDate: initialDepartDate, returnDate: initialReturnDate, passengers } = route.params;
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [loadingDateChange, setLoadingDateChange] = useState(false); // Separate loading for date changes
   const [outboundFlights, setOutboundFlights] = useState<Flight[]>([]);
   const [returnFlights, setReturnFlights] = useState<Flight[]>([]);
   const [selectedOutbound, setSelectedOutbound] = useState<Flight | null>(null);
@@ -90,11 +89,9 @@ export default function FlightResultsScreen({ route, navigation }: any) {
 
   const loadOutboundFlights = async (isInitial = false) => {
     try {
-      // Use different loading state based on whether it's initial load or date change
+      // Only show loading on initial load
       if (isInitial) {
         setLoading(true);
-      } else {
-        setLoadingDateChange(true);
       }
       
       // Extract airport codes from origin and destination
@@ -109,7 +106,6 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       if (!originCode || !destCode) {
         Alert.alert('Invalid Selection', 'Please select valid origin and destination airports');
         setLoading(false);
-        setLoadingDateChange(false);
         return;
       }
 
@@ -175,12 +171,10 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         setOutboundFlights([]);
       }
       setLoading(false);
-      setLoadingDateChange(false);
     } catch (error: any) {
       Alert.alert('Error', 'Failed to load flights. Please try again.');
       setOutboundFlights([]);
       setLoading(false);
-      setLoadingDateChange(false);
     }
   };
 
@@ -737,15 +731,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
               handleDepartDateSelect
             )}
             
-            {/* Lightweight loading indicator for date changes */}
-            {loadingDateChange && (
-              <View style={styles.dateChangeLoading}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.dateChangeLoadingText}>Updating flights...</Text>
-              </View>
-            )}
-            
-            {outboundFlights.length === 0 && !loading && !loadingDateChange && (
+            {outboundFlights.length === 0 && !loading && (
               <Text style={styles.noFlightsText}>No flights found</Text>
             )}
             
@@ -776,15 +762,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
               departDate
             )}
             
-            {/* Lightweight loading indicator for return flights */}
-            {loadingReturn && (
-              <View style={styles.dateChangeLoading}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.dateChangeLoadingText}>Updating flights...</Text>
-              </View>
-            )}
-            
-            {returnFlights.length === 0 && !loadingReturn ? (
+            {returnFlights.length === 0 ? (
               <Text style={styles.noFlightsText}>
                 {selectedOutbound ? 'No return flights found for this date' : 'Select an outbound flight first'}
               </Text>
@@ -1339,17 +1317,6 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     backgroundColor: colors.primary,
-  },
-  dateChangeLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  dateChangeLoadingText: {
-    ...typography.body2,
-    color: colors.textSecondary,
   },
 });
 
