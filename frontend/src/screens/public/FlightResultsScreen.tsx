@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  FlatList,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,7 +54,7 @@ interface Flight {
 }
 
 export default function FlightResultsScreen({ route, navigation }: any) {
-  const { origin, destination, departDate, returnDate, passengers } = route.params;
+  const { origin, destination, departDate: initialDepartDate, returnDate: initialReturnDate, passengers } = route.params;
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
   const [outboundFlights, setOutboundFlights] = useState<Flight[]>([]);
@@ -68,10 +69,13 @@ export default function FlightResultsScreen({ route, navigation }: any) {
     maxPrice: 10000,
     airlines: [] as string[],
   });
+  // Editable dates for slider functionality
+  const [departDate, setDepartDate] = useState(initialDepartDate);
+  const [returnDate, setReturnDate] = useState(initialReturnDate);
 
   useEffect(() => {
     loadOutboundFlights();
-  }, []);
+  }, [departDate]);
 
   useEffect(() => {
     if (selectedOutbound && returnDate && showReturnFlights) {
@@ -306,6 +310,147 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       }
       setShowReturnFlights(true);
     }
+  };
+
+  // Date slider functions
+  const getTodayDateString = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
+  const addDays = (dateString: string, days: number): string => {
+    const date = new Date(dateString);
+    date.setDate(date.getDate() + days);
+    return date.toISOString().split('T')[0];
+  };
+
+  const formatDateDisplay = (dateString: string): string => {
+    const date = new Date(dateString);
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    };
+    return date.toLocaleDateString('en-US', options);
+  };
+
+  // Generate date list for swipeable date picker
+  const generateDateList = (startDate: string, daysCount: number = 60) => {
+    const dates = [];
+    for (let i = 0; i < daysCount; i++) {
+      dates.push(addDays(startDate, i));
+    }
+    return dates;
+  };
+
+  const formatDateShort = (dateString: string) => {
+    const date = new Date(dateString);
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+    const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+    const day = date.getDate();
+    return { dayName, monthName, day, dateString };
+  };
+
+  const handleDepartDateSelect = (dateString: string) => {
+    setDepartDate(dateString);
+    setSelectedOutbound(null);
+    
+    // If return date is before new depart date, adjust it
+    if (returnDate && dateString > returnDate) {
+      setReturnDate(dateString);
+      setSelectedReturn(null);
+    }
+  };
+
+  const handleReturnDateSelect = (dateString: string) => {
+    // Don't allow return date before depart date
+    if (dateString < departDate) {
+      Alert.alert('Invalid Date', 'Return date must be after departure date');
+      return;
+    }
+    
+    setReturnDate(dateString);
+    setSelectedReturn(null);
+  };
+
+  // Render swipeable date slider component
+  const renderSwipeableDateSlider = (
+    selectedDate: string,
+    onDateSelect: (date: string) => void,
+    minDate?: string
+  ) => {
+    const today = getTodayDateString();
+    const startDate = minDate || today;
+    const dateList = generateDateList(startDate, 60);
+    
+    const renderDateItem = ({ item }: { item: string }) => {
+      const { dayName, monthName, day } = formatDateShort(item);
+      const isSelected = item === selectedDate;
+      const isToday = item === today;
+      const isPast = item < today || (!!minDate && item < minDate);
+      
+      return (
+        <TouchableOpacity
+          style={[
+            styles.dateItem,
+            isSelected && styles.dateItemSelected,
+            isPast && styles.dateItemDisabled
+          ]}
+          onPress={() => !isPast && onDateSelect(item)}
+          disabled={isPast}
+          activeOpacity={0.7}
+        >
+          <Text style={[
+            styles.dateDayName,
+            isSelected && styles.dateDayNameSelected,
+            isPast && styles.dateTextDisabled
+          ]}>
+            {dayName}
+          </Text>
+          <View style={styles.dateDayNumberContainer}>
+            <Text style={[
+              styles.dateDayNumber,
+              isSelected && styles.dateDayNumberSelected,
+              isPast && styles.dateTextDisabled
+            ]}>
+              {day}
+            </Text>
+            {isToday && !isSelected && (
+              <View style={styles.todayDot} />
+            )}
+          </View>
+          <Text style={[
+            styles.dateMonthName,
+            isSelected && styles.dateMonthNameSelected,
+            isPast && styles.dateTextDisabled
+          ]}>
+            {monthName}
+          </Text>
+        </TouchableOpacity>
+      );
+    };
+
+    return (
+      <View style={styles.dateSliderWrapper}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={dateList}
+          renderItem={renderDateItem}
+          keyExtractor={(item) => item}
+          contentContainerStyle={styles.dateListContent}
+          initialScrollIndex={dateList.indexOf(selectedDate) > -1 ? dateList.indexOf(selectedDate) : 0}
+          getItemLayout={(data, index) => ({
+            length: 48,
+            offset: 48 * index,
+            index,
+          })}
+          snapToInterval={48}
+          decelerationRate="fast"
+        />
+      </View>
+    );
   };
 
   const handleContinue = async () => {
@@ -572,9 +717,12 @@ export default function FlightResultsScreen({ route, navigation }: any) {
                 <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
               )}
             </View>
-            <Text style={styles.sectionSubtitle}>
-              {departDate}
-            </Text>
+            
+            {/* Date Slider for Depart */}
+            {renderSwipeableDateSlider(
+              departDate,
+              handleDepartDateSelect
+            )}
             
             {outboundFlights.length === 0 && !loading && (
               <Text style={styles.noFlightsText}>No flights found</Text>
@@ -599,9 +747,13 @@ export default function FlightResultsScreen({ route, navigation }: any) {
                 <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
               )}
             </View>
-            <Text style={styles.sectionSubtitle}>
-              {returnDate}
-            </Text>
+            
+            {/* Date Slider for Return */}
+            {renderSwipeableDateSlider(
+              returnDate,
+              handleReturnDateSelect,
+              departDate
+            )}
             
             {loadingReturn ? (
               <View style={styles.loadingContainer}>
@@ -1086,6 +1238,83 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: colors.border,
     marginTop: -20,
+  },
+  // Swipeable Date Slider Styles
+  dateSliderWrapper: {
+    position: 'relative',
+    marginBottom: spacing.sm,
+    backgroundColor: colors.background,
+    paddingVertical: spacing.sm,
+  },
+  dateListContent: {
+    paddingHorizontal: spacing.md,
+  },
+  dateItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    marginHorizontal: 3,
+    borderRadius: 8,
+    minWidth: 42,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+  },
+  dateItemSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+  },
+  dateItemDisabled: {
+    opacity: 0.35,
+    backgroundColor: '#F5F5F5',
+  },
+  dateDayName: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  dateDayNameSelected: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  dateDayNumberContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 1,
+  },
+  dateDayNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  dateDayNumberSelected: {
+    color: '#fff',
+  },
+  dateMonthName: {
+    fontSize: 8,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.2,
+  },
+  dateMonthNameSelected: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  dateTextDisabled: {
+    color: '#BDBDBD',
+  },
+  todayDot: {
+    position: 'absolute',
+    bottom: -3,
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.primary,
   },
 });
 
