@@ -124,6 +124,7 @@ Booking and seat selection require a login, and users attempting to proceed with
 #### Admin Sign in
 
 Admins authenticate through the same login flow with role-based access control and are redirected to the management dashboard.
+
 ![Demo](./demo/adminsignin.gif)
 
 ### Admin Features (Admin Users Only)
@@ -204,7 +205,8 @@ Manage your profile from the profile page:
 
 - Edit existing information (name, phone number, passport number, and birth date)
 - Use the profile for quick booking
-- ![Demo](./demo/profilemanage.gif)
+  
+![Demo](./demo/profilemanage.gif)
 
 ---
 
