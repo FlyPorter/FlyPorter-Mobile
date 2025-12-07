@@ -28,6 +28,12 @@
 
 ---
 
+## Video Demo
+
+Watch the walkthrough here: [Demo](https://youtu.be/HKAumXUSWIg)
+
+---
+
 ## Motivation
 
 Booking a flight on mobile should be fast, transparent, and trustworthy. Many apps still hide fees, feel cluttered, or miss accurate seat availability, so travelers guess whether a chosen seat will stick and operators struggle to correct inventory or prices. That erodes trust and sends people to phone support or other sites.
