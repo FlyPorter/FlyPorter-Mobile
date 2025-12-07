@@ -131,6 +131,7 @@ export default function MyBookingsScreen() {
   const [reminderPromptVisible, setReminderPromptVisible] = useState(false);
   const [currentBookingHash, setCurrentBookingHash] = useState<string | null>(null);
   const reminderTriggeredRef = useRef(false);
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -150,19 +151,22 @@ export default function MyBookingsScreen() {
     };
   }, []);
 
+  // Load bookings on initial mount
+  useEffect(() => {
+    if (isInitialMount.current) {
+      loadBookings();
+      isInitialMount.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Refresh bookings when tab changes
   useEffect(() => {
-    loadBookings();
+    if (!isInitialMount.current) {
+      loadBookings();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
-
-  // Refresh bookings whenever the screen comes into focus (e.g., after seat change)
-  useFocusEffect(
-    React.useCallback(() => {
-      loadBookings();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab])
-  );
 
   useFocusEffect(
     React.useCallback(() => {

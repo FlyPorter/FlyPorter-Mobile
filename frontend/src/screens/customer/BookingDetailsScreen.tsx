@@ -96,17 +96,31 @@ export default function BookingDetailsScreen({ route, navigation }: any) {
     booking.status === 'cancelled' ? colors.error :
     colors.textSecondary;
 
-  const departureTimeDisplay = formatTimeInCityTimezone(
-    booking.flight.departure_time || booking.flight.departureTime,
-    booking.flight.origin.timezone || getAirportTimezone(booking.flight.origin.code)
+  // Round trip support
+  const isRoundTrip = booking.isRoundTrip && booking.outboundFlight && booking.returnFlight;
+  
+  // Outbound flight times
+  const outboundFlight = isRoundTrip ? booking.outboundFlight : booking.flight;
+  const outboundDepartureTime = formatTimeInCityTimezone(
+    outboundFlight.departure_time || outboundFlight.departureTime,
+    outboundFlight.origin.timezone || getAirportTimezone(outboundFlight.origin.code)
   );
-
-  const arrivalTimeDisplay = formatTimeInCityTimezone(
-    booking.flight.arrival_time || booking.flight.arrivalTime,
-    booking.flight.destination.timezone || getAirportTimezone(booking.flight.destination.code)
+  const outboundArrivalTime = formatTimeInCityTimezone(
+    outboundFlight.arrival_time || outboundFlight.arrivalTime,
+    outboundFlight.destination.timezone || getAirportTimezone(outboundFlight.destination.code)
   );
+  const outboundDate = formatDate(outboundFlight.departureDate || outboundFlight.departure_time || booking.bookingDate);
 
-  const flightDate = formatDate(booking.flight.departureDate || booking.bookingDate);
+  // Return flight times (if round trip)
+  const returnDepartureTime = isRoundTrip ? formatTimeInCityTimezone(
+    booking.returnFlight.departure_time || booking.returnFlight.departureTime,
+    booking.returnFlight.origin.timezone || getAirportTimezone(booking.returnFlight.origin.code)
+  ) : '';
+  const returnArrivalTime = isRoundTrip ? formatTimeInCityTimezone(
+    booking.returnFlight.arrival_time || booking.returnFlight.arrivalTime,
+    booking.returnFlight.destination.timezone || getAirportTimezone(booking.returnFlight.destination.code)
+  ) : '';
+  const returnDate = isRoundTrip ? formatDate(booking.returnFlight.departureDate || booking.returnFlight.departure_time) : '';
 
   return (
     <View style={styles.container}>
@@ -115,7 +129,12 @@ export default function BookingDetailsScreen({ route, navigation }: any) {
         <View style={styles.headerCard}>
           <View style={styles.bookingHeader}>
             <View>
-              <Text style={styles.bookingReference}>{booking.bookingReference}</Text>
+              <Text style={styles.bookingReference}>
+                {isRoundTrip ? 'Round Trip' : booking.bookingReference}
+              </Text>
+              {isRoundTrip && (
+                <Text style={styles.bookingSubRef}>{booking.bookingReference}</Text>
+              )}
               <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
                 <Text style={[styles.statusText, { color: statusColor }]}>
                   {booking.status.toUpperCase()}
@@ -128,8 +147,10 @@ export default function BookingDetailsScreen({ route, navigation }: any) {
           </View>
 
           <View style={styles.airlineInfo}>
-            <Text style={styles.airlineName}>{booking.flight.airline.name}</Text>
-            <Text style={styles.flightNumber}>Flight {booking.flight.flightNumber}</Text>
+            <Text style={styles.airlineName}>{outboundFlight.airline.name}</Text>
+            {!isRoundTrip && (
+              <Text style={styles.flightNumber}>Flight {outboundFlight.flightNumber}</Text>
+            )}
           </View>
         </View>
 
@@ -137,15 +158,22 @@ export default function BookingDetailsScreen({ route, navigation }: any) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Flight Route</Text>
 
+          {/* Outbound Flight */}
+          {isRoundTrip && (
+            <View style={styles.roundTripHeader}>
+              <Text style={styles.roundTripLabel}>OUTBOUND</Text>
+              <Text style={styles.roundTripDate}>{outboundDate}</Text>
+            </View>
+          )}
           <View style={styles.routeContainer}>
             {/* Departure */}
             <View style={styles.routeStop}>
               <View style={styles.routeDot} />
               <View style={styles.routeInfo}>
-                <Text style={styles.routeTime}>{departureTimeDisplay}</Text>
-                <Text style={styles.routeCode}>{booking.flight.origin.code}</Text>
-                <Text style={styles.routeName}>{booking.flight.origin.name}</Text>
-                <Text style={styles.routeCity}>{booking.flight.origin.city}</Text>
+                <Text style={styles.routeTime}>{outboundDepartureTime}</Text>
+                <Text style={styles.routeCode}>{outboundFlight.origin.code}</Text>
+                <Text style={styles.routeName}>{outboundFlight.origin.name || outboundFlight.origin.city}</Text>
+                <Text style={styles.routeCity}>{outboundFlight.origin.city}</Text>
               </View>
             </View>
 
@@ -153,8 +181,8 @@ export default function BookingDetailsScreen({ route, navigation }: any) {
             <View style={styles.routeConnector}>
               <View style={styles.routeLine} />
               <View style={styles.durationBox}>
-                <Ionicons name="time" size={16} color={colors.textSecondary} />
-                <Text style={styles.durationText}>{booking.flight.duration}</Text>
+                <Ionicons name="airplane" size={16} color={colors.textSecondary} />
+                <Text style={styles.flightNumberSmall}>{outboundFlight.flightNumber}</Text>
               </View>
             </View>
 
@@ -162,26 +190,71 @@ export default function BookingDetailsScreen({ route, navigation }: any) {
             <View style={styles.routeStop}>
               <View style={styles.routeDot} />
               <View style={styles.routeInfo}>
-                <Text style={styles.routeTime}>{arrivalTimeDisplay}</Text>
-                <Text style={styles.routeCode}>{booking.flight.destination.code}</Text>
-                <Text style={styles.routeName}>{booking.flight.destination.name}</Text>
-                <Text style={styles.routeCity}>{booking.flight.destination.city}</Text>
+                <Text style={styles.routeTime}>{outboundArrivalTime}</Text>
+                <Text style={styles.routeCode}>{outboundFlight.destination.code}</Text>
+                <Text style={styles.routeName}>{outboundFlight.destination.name || outboundFlight.destination.city}</Text>
+                <Text style={styles.routeCity}>{outboundFlight.destination.city}</Text>
               </View>
             </View>
           </View>
+
+          {/* Return Flight */}
+          {isRoundTrip && (
+            <>
+              <View style={styles.roundTripDivider} />
+              <View style={styles.roundTripHeader}>
+                <Text style={styles.roundTripLabel}>RETURN</Text>
+                <Text style={styles.roundTripDate}>{returnDate}</Text>
+              </View>
+              <View style={styles.routeContainer}>
+                {/* Departure */}
+                <View style={styles.routeStop}>
+                  <View style={styles.routeDot} />
+                  <View style={styles.routeInfo}>
+                    <Text style={styles.routeTime}>{returnDepartureTime}</Text>
+                    <Text style={styles.routeCode}>{booking.returnFlight.origin.code}</Text>
+                    <Text style={styles.routeName}>{booking.returnFlight.origin.name || booking.returnFlight.origin.city}</Text>
+                    <Text style={styles.routeCity}>{booking.returnFlight.origin.city}</Text>
+                  </View>
+                </View>
+
+                {/* Duration */}
+                <View style={styles.routeConnector}>
+                  <View style={styles.routeLine} />
+                  <View style={styles.durationBox}>
+                    <Ionicons name="airplane" size={16} color={colors.textSecondary} />
+                    <Text style={styles.flightNumberSmall}>{booking.returnFlight.flightNumber}</Text>
+                  </View>
+                </View>
+
+                {/* Arrival */}
+                <View style={styles.routeStop}>
+                  <View style={styles.routeDot} />
+                  <View style={styles.routeInfo}>
+                    <Text style={styles.routeTime}>{returnArrivalTime}</Text>
+                    <Text style={styles.routeCode}>{booking.returnFlight.destination.code}</Text>
+                    <Text style={styles.routeName}>{booking.returnFlight.destination.name || booking.returnFlight.destination.city}</Text>
+                    <Text style={styles.routeCity}>{booking.returnFlight.destination.city}</Text>
+                  </View>
+                </View>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Booking Details */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Booking Details</Text>
 
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="calendar" size={20} color={colors.textSecondary} />
-              <Text style={styles.detailLabel}>Flight Date</Text>
+          {!isRoundTrip && (
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="calendar" size={20} color={colors.textSecondary} />
+                <Text style={styles.detailLabel}>Flight Date</Text>
+              </View>
+              <Text style={styles.detailValue}>{outboundDate}</Text>
             </View>
-            <Text style={styles.detailValue}>{flightDate}</Text>
-          </View>
+          )}
 
           <View style={styles.detailRow}>
             <View style={styles.detailItem}>
@@ -193,29 +266,92 @@ export default function BookingDetailsScreen({ route, navigation }: any) {
             </Text>
           </View>
 
-          {booking.seatNumbers && booking.seatNumbers.length > 0 && (
-            <View style={styles.detailRow}>
-              <View style={styles.detailItem}>
-                <MaterialCommunityIcons name="seat" size={22} color={colors.textSecondary} />
-                <Text style={styles.detailLabel}>
-                  Seat{booking.seatNumbers.length > 1 ? 's' : ''}
-                </Text>
+          {isRoundTrip ? (
+            <>
+              {booking.outboundSeats && booking.outboundSeats.length > 0 && (
+                <View style={styles.detailRow}>
+                  <View style={styles.detailItem}>
+                    <MaterialCommunityIcons name="seat" size={22} color={colors.textSecondary} />
+                    <Text style={styles.detailLabel}>Outbound Seat{booking.outboundSeats.length > 1 ? 's' : ''}</Text>
+                  </View>
+                  <View style={styles.seatNumberRow}>
+                    <Text style={styles.detailValue}>{booking.outboundSeats.join(', ')}</Text>
+                    {booking.status === 'confirmed' && (
+                      <TouchableOpacity 
+                        style={styles.changeSeatButton}
+                        onPress={() => {
+                          navigation.navigate('SeatSelection', {
+                            flight: booking.outboundFlight,
+                            passengers: booking.passengers,
+                            isRoundTrip: false,
+                            bookingIds: booking.bookingIds.slice(0, booking.passengers), // First half of booking IDs
+                            currentSeatNumbers: booking.outboundSeats,
+                            currentSeatClass: booking.seatClass,
+                          });
+                        }}
+                      >
+                        <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+                        <Text style={styles.changeSeatText}>Change</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+              {booking.returnSeats && booking.returnSeats.length > 0 && (
+                <View style={styles.detailRow}>
+                  <View style={styles.detailItem}>
+                    <MaterialCommunityIcons name="seat" size={22} color={colors.textSecondary} />
+                    <Text style={styles.detailLabel}>Return Seat{booking.returnSeats.length > 1 ? 's' : ''}</Text>
+                  </View>
+                  <View style={styles.seatNumberRow}>
+                    <Text style={styles.detailValue}>{booking.returnSeats.join(', ')}</Text>
+                    {booking.status === 'confirmed' && (
+                      <TouchableOpacity 
+                        style={styles.changeSeatButton}
+                        onPress={() => {
+                          navigation.navigate('SeatSelection', {
+                            flight: booking.returnFlight,
+                            passengers: booking.passengers,
+                            isRoundTrip: false,
+                            bookingIds: booking.bookingIds.slice(booking.passengers), // Second half of booking IDs
+                            currentSeatNumbers: booking.returnSeats,
+                            currentSeatClass: booking.seatClass,
+                          });
+                        }}
+                      >
+                        <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+                        <Text style={styles.changeSeatText}>Change</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+            </>
+          ) : (
+            booking.seatNumbers && booking.seatNumbers.length > 0 && (
+              <View style={styles.detailRow}>
+                <View style={styles.detailItem}>
+                  <MaterialCommunityIcons name="seat" size={22} color={colors.textSecondary} />
+                  <Text style={styles.detailLabel}>
+                    Seat{booking.seatNumbers.length > 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <View style={styles.seatNumberRow}>
+                  <Text style={styles.detailValue}>
+                    {booking.seatNumbers.join(', ')}
+                  </Text>
+                  {booking.status === 'confirmed' && (
+                    <TouchableOpacity 
+                      style={styles.changeSeatButton}
+                      onPress={handleChangeSeat}
+                    >
+                      <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+                      <Text style={styles.changeSeatText}>Change</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-              <View style={styles.seatNumberRow}>
-                <Text style={styles.detailValue}>
-                  {booking.seatNumbers.join(', ')}
-                </Text>
-                {booking.status === 'confirmed' && (
-                  <TouchableOpacity 
-                    style={styles.changeSeatButton}
-                    onPress={handleChangeSeat}
-                  >
-                    <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
-                    <Text style={styles.changeSeatText}>Change</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
+            )
           )}
 
           <View style={styles.detailRow}>
@@ -457,6 +593,40 @@ const styles = StyleSheet.create({
   amenityText: {
     ...typography.body1,
     color: colors.text,
+  },
+  bookingSubRef: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+    marginBottom: spacing.xs,
+  },
+  roundTripHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  roundTripLabel: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  roundTripDate: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  roundTripDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  flightNumberSmall: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginLeft: spacing.xs,
   },
 });
 
