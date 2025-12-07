@@ -30,3 +30,7 @@ load-test-demo.sh
 frontend/ios
 # Android - ignore generated files but keep the project structure  
 frontend/android
+
+# Binary build files
+*.apk
+*.ipa
