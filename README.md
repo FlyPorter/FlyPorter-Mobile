@@ -18,12 +18,13 @@
 ---
 
 ## Team Information
-| Name        | Student Number | Email                         |
-| ----------- | -------------- | ----------------------------- |
-| Yiyang Liu  | 1011770512     | yiyang.liu@mail.utoronto.ca        |
-| Zihan Wan   | 1011617779     | zihanzane.wan@mail.utoronto.ca         |
-| Yiyang Wang | 1010033278     | ydev.wang@mail.utoronto.ca       |
-| Yuan Wang   | 1002766526     | ywang.wang@mail.utoronto.ca         |
+
+| Name        | Student Number | Email                          |
+| ----------- | -------------- | ------------------------------ |
+| Yiyang Liu  | 1011770512     | yiyang.liu@mail.utoronto.ca    |
+| Zihan Wan   | 1011617779     | zihanzane.wan@mail.utoronto.ca |
+| Yiyang Wang | 1010033278     | ydev.wang@mail.utoronto.ca     |
+| Yuan Wang   | 1002766526     | ywang.wang@mail.utoronto.ca    |
 
 ---
 
@@ -61,30 +62,34 @@ FlyPorter Mobile focuses on three groups: business travelers who need reliable s
 
 ## Features
 
-1) Customer experience  
-- Flight search without login: one way or round trip, dates, passengers, airport autocomplete, and nearest airport prefill using expo location when permission is granted.  
-- Results and details: flight list, detail screen, and seat map with availability from the backend; selection feeds directly into checkout.  
-- Booking flow: passenger info entry or profile reuse, price review, payment screen, confirmation code, and My Trips list with booking detail and cancellation.  
-- Notifications: expo notifications on device; backend sends push notifications (expo server sdk) for booking confirmation and cancellation once a push token is registered. An in app notifications screen tracks unread counts.  
-- Invoices and email: server generates PDF invoices per booking (download via API; optionally served from DigitalOcean Spaces). Booking confirmation emails use SendGrid with itinerary and invoice content.  
+1. Customer experience
+
+- Flight search without login: one way or round trip, dates, passengers, airport autocomplete, and nearest airport prefill using expo location when permission is granted.
+- Results and details: flight list, detail screen, and seat map with availability from the backend; selection feeds directly into checkout.
+- Booking flow: passenger info entry or profile reuse, price review, payment screen, confirmation code, and My Trips list with booking detail and cancellation.
+- Notifications: expo notifications on device; backend sends push notifications (expo server sdk) for booking confirmation and cancellation once a push token is registered. An in app notifications screen tracks unread counts.
+- Invoices and email: server generates PDF invoices per booking (download via API; optionally served from DigitalOcean Spaces). Booking confirmation emails use SendGrid with itinerary and invoice content.
 - Profile: manage name, phone, passport, and reuse profile data during checkout.
 
-2) Admin tools  
-- Role based admin area with its own tab set: dashboard, bookings list and detail with cancel actions, and manage data screens for routes, flights, seats, pricing, and customers.  
+2. Admin tools
+
+- Role based admin area with its own tab set: dashboard, bookings list and detail with cancel actions, and manage data screens for routes, flights, seats, pricing, and customers.
 - Admin actions update the same Express/Prisma/PostgreSQL backend so customer and staff views stay in sync.
 
-3) Compliance with core requirements  
-- React Native and Expo with TypeScript and React Navigation multi screen flow.  
-- Context and AsyncStorage for auth state, notifications, preferences, and pending navigation.  
-- Expo notifications end to end (device client plus server side expo server sdk).  
-- Backend integration through Axios to Express/Prisma/PostgreSQL for auth, flights, seats, bookings, profiles, notifications, and invoices.  
+3. Compliance with core requirements
+
+- React Native and Expo with TypeScript and React Navigation multi screen flow.
+- Context and AsyncStorage for auth state, notifications, preferences, and pending navigation.
+- Expo notifications end to end (device client plus server side expo server sdk).
+- Backend integration through Axios to Express/Prisma/PostgreSQL for auth, flights, seats, bookings, profiles, notifications, and invoices.
 - EAS build provided (Android) for grading and testing.
 
-How these features meet the objectives  
-- Clarity and transparency: guided search to seat map to checkout, price review, and confirmation codes make the flow predictable.  
-- Trustworthy inventory and pricing: seat availability and pricing come from the backend and are locked during booking; invoices and confirmation emails give verifiable records.  
-- Self service for travelers: search without login, profile reuse, My Trips management, cancellations, and timely local and push notifications reduce reliance on support.  
-- Operational control for staff: admin dashboard, booking actions, and route and seat management keep customer and staff views consistent.  
+How these features meet the objectives
+
+- Clarity and transparency: guided search to seat map to checkout, price review, and confirmation codes make the flow predictable.
+- Trustworthy inventory and pricing: seat availability and pricing come from the backend and are locked during booking; invoices and confirmation emails give verifiable records.
+- Self service for travelers: search without login, profile reuse, My Trips management, cancellations, and timely local and push notifications reduce reliance on support.
+- Operational control for staff: admin dashboard, booking actions, and route and seat management keep customer and staff views consistent.
 - Course-aligned delivery: React Native and Expo with TypeScript, Context and AsyncStorage, Expo notifications, backend integration, and shipped EAS build satisfy the core technical requirements while matching the project’s transparency and reliability goals.
 
 ---
@@ -219,12 +224,6 @@ cd frontend
 npm install
 ```
 
-**Copy .env.dev to your .env (if available):**
-
-```
-cp .env.dev .env
-```
-
 **Start the frontend server:**
 
 ```
@@ -237,7 +236,9 @@ This will start the Expo development server. You can then:
 - Press `a` to open Android emulator
 - Scan the QR code with Expo Go app on your physical device
 
-> **Note:** The frontend is currently configured to use the deployed API at `https://api.flyporter.website/api`, so you don't need to do anything about database or backend setup. If you want to test with a local backend server, you can modify the `API_BASE_URL` in `frontend/src/services/api.ts` to `http://localhost:3000/api` (or your local backend URL). Make sure your backend server is running before starting the frontend.
+**This is all you need to test the app features!**
+
+> **Note:** The frontend is currently configured to use the deployed API at `https://api.flyporter.website/api`, so you don't need to do anything about database or backend setup. If you want to test with a local backend server, you can modify the `API_BASE_URL` in `frontend/src/services/api.ts` to `http://localhost:3000/api`. Make sure your backend server is running before starting the frontend.
 
 ### Docker Instructions
 
@@ -465,7 +466,7 @@ The seed script will create:
 - 4 Airports: YYZ, YVR, YUL, YOW
 - 2 Airlines: FlyPorter, Air Canada
 - 6 Routes between the cities
-- 3 future-dated flights with generated seats (ready to book)
+- 5000 future-dated flights with generated seats (ready to book)
 
 > Note: This step is optional, you can skip it if you do not want to populate data. Also, the seed script does not reset the database, so the id will increase in each run. You can check the seed.log file or your terminal output for the created data that can be used to test our application.
 
@@ -852,4 +853,5 @@ eas build --profile development --platform ios --local
   - Created Docker Compose configurations to run the db and backend
 
 ## Our Team!
+
 ![Image](https://github.com/user-attachments/assets/bdb0053d-9487-4aaa-bd61-3c9cf9ab568c)
