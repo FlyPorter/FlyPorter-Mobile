@@ -867,6 +867,27 @@ eas build --profile development --platform ios --local
   - Built admin-side operational APIs and prepared corresponding API documentation
   - Created Docker Compose configurations to run the db and backend
 
+---
+
+## Lessons Learned and Concluding Remarks
+
+Through this project, we practiced modern mobile app development using technologies such as React, Expo, and TypeScript. We implemented several advanced features including:
+
+- **JWT Authentication** for secure user authentication and authorization
+- **DigitalOcean Spaces** for storing invoice files
+- **Mobile Sensors** - Using user's location to auto-populate the departure airport
+- **Push Notifications** for real-time updates and reminders
+- **SendGrid** for email notifications
+
+### Future Improvements
+
+Looking ahead, we would like to explore:
+
+- **Microservices Architecture** for better scalability and maintainability
+- **AI Integration** to enhance user experience with intelligent features
+
+---
+
 ## Our Team!
 
 ![Image](https://github.com/user-attachments/assets/bdb0053d-9487-4aaa-bd61-3c9cf9ab568c)
