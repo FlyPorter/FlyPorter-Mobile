@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
-  FlatList,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,9 +68,6 @@ export default function FlightResultsScreen({ route, navigation }: any) {
     maxPrice: 10000,
     airlines: [] as string[],
   });
-  // Editable dates for slider functionality
-  const [departDate, setDepartDate] = useState(initialDepartDate);
-  const [returnDate, setReturnDate] = useState(initialReturnDate);
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
@@ -79,13 +75,13 @@ export default function FlightResultsScreen({ route, navigation }: any) {
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
     }
-  }, [departDate]);
+  }, []);
 
   useEffect(() => {
-    if (selectedOutbound && returnDate && showReturnFlights) {
+    if (selectedOutbound && initialReturnDate && showReturnFlights) {
       loadReturnFlights();
     }
-  }, [selectedOutbound, returnDate, showReturnFlights]);
+  }, [selectedOutbound, showReturnFlights]);
 
   const loadOutboundFlights = async (isInitial = false) => {
     try {
@@ -113,7 +109,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       const response = await flightAPI.search({
         departure_airport: originCode,
         destination_airport: destCode,
-        date: departDate,
+        date: initialDepartDate,
       });
       
       if (response.data?.success && response.data?.data) {
@@ -200,7 +196,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       const response = await flightAPI.search({
         departure_airport: originCode,
         destination_airport: destCode,
-        date: returnDate,
+        date: initialReturnDate,
       });
       
       if (response.data?.success && response.data?.data) {
@@ -277,8 +273,13 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   };
 
   const handleSelectOutbound = (flight: Flight) => {
+    // Recalculate hasDeparted in real-time
+    const now = new Date();
+    const departureTime = new Date(flight.departure_time || flight.departureTime);
+    const hasDeparted = departureTime < now;
+    
     // Prevent selection of departed flights
-    if (flight.hasDeparted) {
+    if (hasDeparted) {
       Alert.alert('Flight Departed', 'This flight has already departed and cannot be selected.');
       return;
     }
@@ -288,8 +289,13 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   };
 
   const handleSelectReturn = (flight: Flight) => {
+    // Recalculate hasDeparted in real-time
+    const now = new Date();
+    const departureTime = new Date(flight.departure_time || flight.departureTime);
+    const hasDeparted = departureTime < now;
+    
     // Prevent selection of departed flights
-    if (flight.hasDeparted) {
+    if (hasDeparted) {
       Alert.alert('Flight Departed', 'This flight has already departed and cannot be selected.');
       return;
     }
@@ -319,150 +325,10 @@ export default function FlightResultsScreen({ route, navigation }: any) {
     }
   };
 
-  // Date slider functions
-  const getTodayDateString = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
-
-  const addDays = (dateString: string, days: number): string => {
-    const date = new Date(dateString);
-    date.setDate(date.getDate() + days);
-    return date.toISOString().split('T')[0];
-  };
-
-  const formatDateDisplay = (dateString: string): string => {
-    const date = new Date(dateString);
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    };
-    return date.toLocaleDateString('en-US', options);
-  };
-
-  // Generate date list for swipeable date picker
-  const generateDateList = (startDate: string, daysCount: number = 60) => {
-    const dates = [];
-    for (let i = 0; i < daysCount; i++) {
-      dates.push(addDays(startDate, i));
-    }
-    return dates;
-  };
-
-  const formatDateShort = (dateString: string) => {
-    const date = new Date(dateString);
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-    const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-    const day = date.getDate();
-    return { dayName, monthName, day, dateString };
-  };
-
-  const handleDepartDateSelect = (dateString: string) => {
-    setDepartDate(dateString);
-    setSelectedOutbound(null);
-    
-    // If return date is before new depart date, adjust it
-    if (returnDate && dateString > returnDate) {
-      setReturnDate(dateString);
-      setSelectedReturn(null);
-    }
-  };
-
-  const handleReturnDateSelect = (dateString: string) => {
-    // Don't allow return date before depart date
-    if (dateString < departDate) {
-      Alert.alert('Invalid Date', 'Return date must be after departure date');
-      return;
-    }
-    
-    setReturnDate(dateString);
-    setSelectedReturn(null);
-  };
-
-  // Render swipeable date slider component
-  const renderSwipeableDateSlider = (
-    selectedDate: string,
-    onDateSelect: (date: string) => void,
-    minDate?: string
-  ) => {
-    const today = getTodayDateString();
-    const startDate = minDate || today;
-    const dateList = generateDateList(startDate, 60);
-    
-    const renderDateItem = ({ item }: { item: string }) => {
-      const { dayName, monthName, day } = formatDateShort(item);
-      const isSelected = item === selectedDate;
-      const isToday = item === today;
-      const isPast = item < today || (!!minDate && item < minDate);
-      
-      return (
-        <TouchableOpacity
-          style={[
-            styles.dateItem,
-            isSelected && styles.dateItemSelected,
-            isPast && styles.dateItemDisabled
-          ]}
-          onPress={() => !isPast && onDateSelect(item)}
-          disabled={isPast}
-          activeOpacity={0.7}
-        >
-          <Text style={[
-            styles.dateDayName,
-            isSelected && styles.dateDayNameSelected,
-            isPast && styles.dateTextDisabled
-          ]}>
-            {dayName}
-          </Text>
-          <View style={styles.dateDayNumberContainer}>
-            <Text style={[
-              styles.dateDayNumber,
-              isSelected && styles.dateDayNumberSelected,
-              isPast && styles.dateTextDisabled
-            ]}>
-              {day}
-            </Text>
-            {isToday && !isSelected && (
-              <View style={styles.todayDot} />
-            )}
-          </View>
-          <Text style={[
-            styles.dateMonthName,
-            isSelected && styles.dateMonthNameSelected,
-            isPast && styles.dateTextDisabled
-          ]}>
-            {monthName}
-          </Text>
-        </TouchableOpacity>
-      );
-    };
-
-    return (
-      <View style={styles.dateSliderWrapper}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={dateList}
-          renderItem={renderDateItem}
-          keyExtractor={(item) => item}
-          contentContainerStyle={styles.dateListContent}
-          initialScrollIndex={dateList.indexOf(selectedDate) > -1 ? dateList.indexOf(selectedDate) : 0}
-          getItemLayout={(data, index) => ({
-            length: 48,
-            offset: 48 * index,
-            index,
-          })}
-          snapToInterval={48}
-          decelerationRate="fast"
-        />
-      </View>
-    );
-  };
 
   const handleContinue = async () => {
     // For round-trip, if we haven't shown return flights yet, show them
-    if (returnDate && !showReturnFlights) {
+    if (initialReturnDate && !showReturnFlights) {
       if (!selectedOutbound) {
         Alert.alert('Please Select', 'Please select a departing flight to continue');
         return;
@@ -476,7 +342,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       try {
         const pendingNavigation = {
           screen: 'FlightDetails',
-          params: returnDate ? {
+          params: initialReturnDate ? {
             outboundFlight: selectedOutbound,
             returnFlight: selectedReturn,
             passengers,
@@ -490,8 +356,8 @@ export default function FlightResultsScreen({ route, navigation }: any) {
           searchParams: {
             origin,
             destination,
-            departDate,
-            returnDate,
+            departDate: initialDepartDate,
+            returnDate: initialReturnDate,
             passengers,
           },
         };
@@ -503,7 +369,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       return;
     }
 
-    if (returnDate) {
+    if (initialReturnDate) {
       // Round trip - must have both flights selected
       if (!selectedOutbound || !selectedReturn) {
         Alert.alert(
@@ -513,8 +379,8 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         return;
       }
       navigation.navigate('FlightDetails', {
-        outboundFlight: { ...selectedOutbound, departureDate: departDate },
-        returnFlight: { ...selectedReturn, departureDate: returnDate },
+        outboundFlight: { ...selectedOutbound, departureDate: initialDepartDate },
+        returnFlight: { ...selectedReturn, departureDate: initialReturnDate },
         passengers,
         isRoundTrip: true,
       });
@@ -525,7 +391,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         return;
       }
       navigation.navigate('FlightDetails', {
-        flight: { ...selectedOutbound, departureDate: departDate },
+        flight: { ...selectedOutbound, departureDate: initialDepartDate },
         passengers,
         isRoundTrip: false,
       });
@@ -567,6 +433,11 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   };
 
   const renderFlightCard = (flight: Flight, isSelected: boolean, onSelect: (flight: Flight) => void) => {
+    // Recalculate hasDeparted in real-time for accuracy
+    const now = new Date();
+    const departureTime = new Date(flight.departure_time || flight.departureTime);
+    const hasDeparted = departureTime < now;
+    
     // Format times with timezone
     const departureTimeDisplay = formatTimeWithTimezone(
       flight.departure_time || flight.departureTime,
@@ -583,11 +454,11 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         style={[
           styles.flightCard,
           isSelected && styles.selectedFlightCard,
-          flight.hasDeparted && styles.departedFlightCard,
+          hasDeparted && styles.departedFlightCard,
         ]}
         onPress={() => onSelect(flight)}
-        disabled={flight.hasDeparted}
-        activeOpacity={flight.hasDeparted ? 1 : 0.7}
+        disabled={hasDeparted}
+        activeOpacity={hasDeparted ? 1 : 0.7}
       >
         <View style={styles.flightCardContent}>
           {/* Times and Price Row */}
@@ -596,13 +467,13 @@ export default function FlightResultsScreen({ route, navigation }: any) {
             <View style={styles.flightTimeSection}>
               <Text style={[
                 styles.flightTimeLarge,
-                flight.hasDeparted && styles.departedText
+                hasDeparted && styles.departedText
               ]}>
                 {departureTimeDisplay}
               </Text>
               <Text style={[
                 styles.flightAirportCode,
-                flight.hasDeparted && styles.departedText
+                hasDeparted && styles.departedText
               ]}>
                 {flight.origin.code}
               </Text>
@@ -615,13 +486,13 @@ export default function FlightResultsScreen({ route, navigation }: any) {
             <View style={styles.flightTimeSection}>
               <Text style={[
                 styles.flightTimeLarge,
-                flight.hasDeparted && styles.departedText
+                hasDeparted && styles.departedText
               ]}>
                 {arrivalTimeDisplay}
               </Text>
               <Text style={[
                 styles.flightAirportCode,
-                flight.hasDeparted && styles.departedText
+                hasDeparted && styles.departedText
               ]}>
                 {flight.destination.code}
               </Text>
@@ -630,7 +501,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
             {/* Price */}
             <Text style={[
               styles.flightPrice,
-              flight.hasDeparted && styles.departedText
+              hasDeparted && styles.departedText
             ]}>
               ${flight.price}
             </Text>
@@ -643,7 +514,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
             <View style={styles.flightDurationBadge}>
               <Text style={[
                 styles.flightDuration,
-                flight.hasDeparted && styles.departedText
+                hasDeparted && styles.departedText
               ]}>
                 {flight.duration}
               </Text>
@@ -656,11 +527,11 @@ export default function FlightResultsScreen({ route, navigation }: any) {
           <View style={styles.flightStatusRow}>
             <Text style={[
               styles.flightNonStop,
-              flight.hasDeparted && styles.departedText
+              hasDeparted && styles.departedText
             ]}>
               Non-stop
             </Text>
-            {flight.hasDeparted && (
+            {hasDeparted && (
               <View style={styles.departedBadge}>
                 <Ionicons name="time-outline" size={14} color={colors.error} />
                 <Text style={styles.departedBadgeText}>has taken off</Text>
@@ -670,7 +541,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         </View>
 
         {/* Selection Status */}
-        {isSelected && !flight.hasDeparted && (
+        {isSelected && !hasDeparted && (
           <View style={styles.selectionStatus}>
             <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
             <Text style={styles.selectionText}>Selected</Text>
@@ -692,7 +563,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
   return (
     <View style={styles.container}>
       {/* Step Indicator for Round-trip */}
-      {returnDate && (
+      {initialReturnDate && (
         <View style={styles.stepIndicator}>
           <TouchableOpacity style={styles.stepItem} onPress={() => handleStepClick(1)}>
             <View style={[styles.stepCircle, !showReturnFlights && styles.stepCircleActive]}>
@@ -725,12 +596,6 @@ export default function FlightResultsScreen({ route, navigation }: any) {
               )}
             </View>
             
-            {/* Date Slider for Depart */}
-            {renderSwipeableDateSlider(
-              departDate,
-              handleDepartDateSelect
-            )}
-            
             {outboundFlights.length === 0 && !loading && (
               <Text style={styles.noFlightsText}>No flights found</Text>
             )}
@@ -746,7 +611,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         )}
 
         {/* Return Flights Section - Only show when showReturnFlights is true */}
-        {returnDate && showReturnFlights && (
+        {initialReturnDate && showReturnFlights && (
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Return</Text>
@@ -754,13 +619,6 @@ export default function FlightResultsScreen({ route, navigation }: any) {
                 <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
               )}
             </View>
-            
-            {/* Date Slider for Return */}
-            {renderSwipeableDateSlider(
-              returnDate,
-              handleReturnDateSelect,
-              departDate
-            )}
             
             {returnFlights.length === 0 ? (
               <Text style={styles.noFlightsText}>
@@ -784,7 +642,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         <View style={styles.footerPrice}>
           <Text style={styles.footerPriceLabel}>Total</Text>
           <Text style={styles.footerPriceAmount}>
-            ${returnDate && selectedOutbound && selectedReturn
+            ${initialReturnDate && selectedOutbound && selectedReturn
               ? ((selectedOutbound.price + selectedReturn.price) * passengers).toFixed(2)
               : selectedOutbound
               ? (selectedOutbound.price * passengers).toFixed(2)
@@ -794,13 +652,13 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         <TouchableOpacity
           style={[
             styles.nextButton,
-            (!selectedOutbound || (returnDate && showReturnFlights && !selectedReturn)) && styles.nextButtonDisabled,
+            (!selectedOutbound || (initialReturnDate && showReturnFlights && !selectedReturn)) && styles.nextButtonDisabled,
           ]}
           onPress={handleContinue}
-          disabled={!selectedOutbound || (returnDate && showReturnFlights && !selectedReturn)}
+          disabled={!selectedOutbound || (initialReturnDate && showReturnFlights && !selectedReturn)}
         >
           <Text style={styles.nextButtonText}>
-            {returnDate && !showReturnFlights ? 'Continue to Return Flights' : 'Next'}
+            {initialReturnDate && !showReturnFlights ? 'Continue to Return Flights' : 'Next'}
           </Text>
           <Ionicons name="arrow-forward" size={20} color="#fff" />
         </TouchableOpacity>
@@ -1240,83 +1098,6 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: colors.border,
     marginTop: -20,
-  },
-  // Swipeable Date Slider Styles
-  dateSliderWrapper: {
-    position: 'relative',
-    marginBottom: spacing.sm,
-    backgroundColor: colors.background,
-    paddingVertical: spacing.sm,
-  },
-  dateListContent: {
-    paddingHorizontal: spacing.md,
-  },
-  dateItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.xs,
-    marginHorizontal: 3,
-    borderRadius: 8,
-    minWidth: 42,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-  },
-  dateItemSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-  },
-  dateItemDisabled: {
-    opacity: 0.35,
-    backgroundColor: '#F5F5F5',
-  },
-  dateDayName: {
-    fontSize: 9,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginBottom: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  dateDayNameSelected: {
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  dateDayNumberContainer: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 1,
-  },
-  dateDayNumber: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  dateDayNumberSelected: {
-    color: '#fff',
-  },
-  dateMonthName: {
-    fontSize: 8,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.2,
-  },
-  dateMonthNameSelected: {
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  dateTextDisabled: {
-    color: '#BDBDBD',
-  },
-  todayDot: {
-    position: 'absolute',
-    bottom: -3,
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.primary,
   },
 });
 
