@@ -196,6 +196,9 @@ export default function FlightResultsScreen({ route, navigation }: any) {
         // Get current time for marking past flights
         const now = new Date();
         
+        // Get outbound flight arrival time for round-trip validation
+        const outboundArrivalTime = selectedOutbound?.arrival_time ? new Date(selectedOutbound.arrival_time) : null;
+        
         // Map flights to our format and mark departed flights (don't filter them out)
         const filteredFlights = response.data.data
           .map((flight: any) => {
@@ -240,6 +243,15 @@ export default function FlightResultsScreen({ route, navigation }: any) {
               },
               hasDeparted, // Mark if departed
             };
+          })
+          .filter((flight: any) => {
+            // Filter out return flights that depart before outbound flight arrives
+            if (outboundArrivalTime) {
+              const returnDepartureTime = new Date(flight.departure_time);
+              // Return flight must depart after outbound flight arrives
+              return returnDepartureTime >= outboundArrivalTime;
+            }
+            return true;
           });
         
         setReturnFlights(filteredFlights);
@@ -280,6 +292,20 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       return;
     }
     setExpandedSide(side);
+  };
+
+  const handleStepClick = (step: 1 | 2) => {
+    if (step === 1) {
+      // Switch to outbound flight selection
+      setShowReturnFlights(false);
+    } else if (step === 2) {
+      // Switch to return flight selection
+      if (!selectedOutbound) {
+        Alert.alert('Select Depart First', 'Please select a departing flight first');
+        return;
+      }
+      setShowReturnFlights(true);
+    }
   };
 
   const handleContinue = async () => {
@@ -516,23 +542,23 @@ export default function FlightResultsScreen({ route, navigation }: any) {
       {/* Step Indicator for Round-trip */}
       {returnDate && (
         <View style={styles.stepIndicator}>
-          <View style={styles.stepItem}>
+          <TouchableOpacity style={styles.stepItem} onPress={() => handleStepClick(1)}>
             <View style={[styles.stepCircle, !showReturnFlights && styles.stepCircleActive]}>
               <Text style={[styles.stepNumber, !showReturnFlights && styles.stepNumberActive]}>1</Text>
             </View>
             <Text style={[styles.stepLabel, !showReturnFlights && styles.stepLabelActive]}>
               Select Departing Flight
             </Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.stepDivider} />
-          <View style={styles.stepItem}>
+          <TouchableOpacity style={styles.stepItem} onPress={() => handleStepClick(2)}>
             <View style={[styles.stepCircle, showReturnFlights && styles.stepCircleActive]}>
               <Text style={[styles.stepNumber, showReturnFlights && styles.stepNumberActive]}>2</Text>
             </View>
             <Text style={[styles.stepLabel, showReturnFlights && styles.stepLabelActive]}>
               Select Return Flight
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -584,7 +610,7 @@ export default function FlightResultsScreen({ route, navigation }: any) {
               </View>
             ) : returnFlights.length === 0 ? (
               <Text style={styles.noFlightsText}>
-                {selectedOutbound ? 'No return flights found' : 'Select an outbound flight first'}
+                {selectedOutbound ? 'No return flights found for this date' : 'Select an outbound flight first'}
               </Text>
             ) : (
               returnFlights.map((flight) =>
