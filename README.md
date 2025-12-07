@@ -873,6 +873,19 @@ eas build --profile development --platform ios --local
   - Built admin-side operational APIs and prepared corresponding API documentation
   - Created Docker Compose configurations to run the db and backend
 
+### Zihan Wan
+
+- Backend (Customer):
+  - Implemented customer APIs for profile, bookings, and notifications
+  - Developed booking service and filtered flight search endpoint
+  - Created PDF invoice generation with DigitalOcean Spaces integration
+  - Implemented admin booking management capabilities
+  - Set up deployment for backend on DigitalOcean
+  - Configured database migrations and seed scripts
+
+- Frontend (Customer):
+  - Implemented travel reminder banner with local notifications
+
 ---
 
 ## Lessons Learned and Concluding Remarks
