@@ -96,6 +96,11 @@ How these features meet the objectives
 
 ## User Guide
 
+> **Pre-configurataion:**
+>
+> - To test the **local development version**, complete the [Frontend Setup](#frontend-setup) in the Development Guide.
+> - To test the **production build version**, follow the setup instructions in [Deployment Information](#deployment-information).
+
 ### Search Without Logging in
 
 FlyPorter allows users to search for available flights without authentication.
